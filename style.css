@@ -1,0 +1,21 @@
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #333333; /* 게임 바깥쪽 배경색 */
+    font-family: 'Arial', sans-serif;
+}
+
+#game-container {
+    text-align: center;
+}
+
+canvas {
+    background-color: #87CEEB; /* 게임 안쪽 기본 배경색 (하늘색) */
+    border: 4px solid #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
