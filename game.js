@@ -81,6 +81,9 @@ const hubUi = document.getElementById('hub-ui');
 const difficultyUi = document.getElementById('difficulty-ui');
 const shopUi = document.getElementById('shop-ui');
 const shopCoinsText = document.getElementById('shop-coins');
+const keyboardPad = document.getElementById('keyboard-pad');
+const virtualKeyButtons = document.querySelectorAll('.key-btn:not(#btn-key-esc)');
+const btnKeyEsc = document.getElementById('btn-key-esc');
 
 const charButtons = document.querySelectorAll('.char-btn[data-char]');
 const btnMouse = document.getElementById('btn-mouse');
@@ -161,10 +164,32 @@ btnMouse.addEventListener('click', () => {
 btnKeyboard.addEventListener('click', () => {
     gameState = 'TRAIN_KEYBOARD';
     missionUi.style.display = 'none';
+    keyboardPad.style.display = 'flex'; // 가상 키보드 표시
     spawnKey();
 });
 
 btnGymExit.addEventListener('click', showHubMenu);
+
+// 가상 키보드 문자 버튼 클릭 이벤트 (모바일)
+virtualKeyButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        if (gameState === 'TRAIN_KEYBOARD') {
+            const keyVal = button.innerText.trim().toUpperCase();
+            if (keyVal === targetKey) {
+                playerCoins++;
+                playerEnergy = Math.min(100, playerEnergy + 3);
+                spawnKey();
+            }
+        }
+    });
+});
+
+// 가상 키보드 ESC 버튼 클릭 이벤트 (모바일)
+btnKeyEsc.addEventListener('click', () => {
+    if (gameState === 'TRAIN_KEYBOARD') {
+        showGymMenu();
+    }
+});
 
 // 4. 난이도 선택 조작
 diffButtons.forEach(button => {
@@ -367,6 +392,7 @@ function hideAllUIs() {
     hubUi.style.display = 'none';
     difficultyUi.style.display = 'none';
     shopUi.style.display = 'none';
+    keyboardPad.style.display = 'none';
 }
 
 function showHubMenu() {

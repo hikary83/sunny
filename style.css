@@ -283,5 +283,53 @@ canvas {
     transform: none !important;
 }
 
+/* 모바일 가상 키보드 패드 */
+#keyboard-pad {
+    position: absolute;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 94%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10;
+    box-sizing: border-box;
+}
+
+.key-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+}
+
+.key-btn {
+    background-color: rgba(38, 50, 68, 0.95);
+    border: 2px solid #ffffff;
+    border-radius: 6px;
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 15px;
+    padding: 10px 0;
+    flex-grow: 1;
+    text-align: center;
+    box-shadow: 0 3px 0 #1b2530;
+    cursor: pointer;
+    user-select: none;
+    box-sizing: border-box;
+    transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.key-btn:hover {
+    background-color: rgba(58, 70, 98, 0.95);
+    border-color: #ffeb3b;
+}
+
+.key-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 0px 0 #1b2530;
+}
+
 
 

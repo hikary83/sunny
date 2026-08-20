@@ -8,6 +8,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>우리의 멋진 게임</title>
+    <script>
+        // 모바일 환경 디버깅을 위한 전역 자바스크립트 에러 감지기
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert("자바스크립트 오류 감지!\n\n메시지: " + message + "\n위치: " + source + " (라인: " + lineno + ")");
+            return false;
+        };
+    </script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -87,6 +94,43 @@
         
         <!-- 게임 화면이 그려질 도화지(캔버스)입니다 -->
         <canvas id="gameCanvas" width="450" height="800"></canvas>
+
+        <!-- 가상 키보드 패드 (모바일 키보드 훈련용) -->
+        <div id="keyboard-pad" style="display: none;">
+            <div class="key-row">
+                <button class="key-btn">Q</button>
+                <button class="key-btn">W</button>
+                <button class="key-btn">E</button>
+                <button class="key-btn">R</button>
+                <button class="key-btn">T</button>
+                <button class="key-btn">Y</button>
+                <button class="key-btn">U</button>
+                <button class="key-btn">I</button>
+                <button class="key-btn">O</button>
+                <button class="key-btn">P</button>
+            </div>
+            <div class="key-row">
+                <button class="key-btn">A</button>
+                <button class="key-btn">S</button>
+                <button class="key-btn">D</button>
+                <button class="key-btn">F</button>
+                <button class="key-btn">G</button>
+                <button class="key-btn">H</button>
+                <button class="key-btn">J</button>
+                <button class="key-btn">K</button>
+                <button class="key-btn">L</button>
+            </div>
+            <div class="key-row">
+                <button class="key-btn" style="flex-grow: 1.5; background-color: #f44336; box-shadow: 0 3px 0 #b71c1c;" id="btn-key-esc">ESC</button>
+                <button class="key-btn">Z</button>
+                <button class="key-btn">X</button>
+                <button class="key-btn">C</button>
+                <button class="key-btn">V</button>
+                <button class="key-btn">B</button>
+                <button class="key-btn">N</button>
+                <button class="key-btn">M</button>
+            </div>
+        </div>
     </div>
     
     <!-- 게임의 로직을 담당하는 자바스크립트 파일 연결 -->
