@@ -2,7 +2,11 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 모바일 웹앱 전체화면 설정 (홈 화면 추가 시 앱처럼 동작) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>우리의 멋진 게임</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -12,22 +16,77 @@
         <div id="ui-layer">
             <h2>주인공을 선택하세요!</h2>
             <div class="character-list">
-                <button class="char-btn" data-char="🐶">🐶 강아지</button>
-                <button class="char-btn" data-char="🦖">🦖 공룡</button>
-                <button class="char-btn" data-char="🐧">🐧 펭귄</button>
+                <button class="char-btn" data-char="🐶"><img class="char-select-img" src="assets/player_dog_down.png" alt="강아지"></button>
+                <button class="char-btn" data-char="🦖"><img class="char-select-img" src="assets/player_dino_down.png" alt="공룡"></button>
+                <button class="char-btn" data-char="🐧"><img class="char-select-img" src="assets/player_penguin_down.png" alt="펭귄"></button>
+                <button class="char-btn" data-char="👽"><img class="char-select-img" src="assets/player_stitch_down.png" alt="스티치"></button>
             </div>
         </div>
 
         <!-- 훈련 선택 화면 (HTML UI) -->
-        <div id="mission-ui" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.9); border-radius: 10px; flex-direction: column; justify-content: center; align-items: center; z-index: 10;">
-            <h2 style="font-size: 30px; margin-bottom: 20px;">어떤 훈련을 할까요?</h2>
-            <button class="char-btn" id="btn-mouse" style="margin-bottom: 15px;">🖱️ 마우스 클릭 훈련 (1단계)</button>
-            <button class="char-btn" id="btn-keyboard">⌨️ 키보드 자리 훈련 (1단계)</button>
-            <button class="char-btn" id="btn-gym-exit" style="margin-top: 30px; background-color: #ff9999; font-size: 20px; padding: 10px 20px;">🚪 체육관 나가기 (수영하러 가기)</button>
+        <div id="mission-ui" class="overlay-ui" style="display: none;">
+            <h2>🏋️‍♂️ 체육관 훈련소</h2>
+            <p class="ui-desc">연습을 해서 코인도 벌고 체력도 회복해 보아요!</p>
+            <button class="menu-btn" id="btn-mouse">🖱️ 마우스 클릭 훈련 (1단계)</button>
+            <button class="menu-btn" id="btn-keyboard">⌨️ 키보드 자리 훈련 (1단계)</button>
+            <button class="menu-btn back-btn" id="btn-gym-exit">🚪 체육관 나가기 (로비로 가기)</button>
+        </div>
+
+        <!-- 허브 / 로비 화면 (HTML UI) -->
+        <div id="hub-ui" class="overlay-ui" style="display: none;">
+            <h2>🏡 수영 마스터 로비</h2>
+            <p class="ui-desc">무엇을 하고 싶으신가요?</p>
+            <button class="menu-btn play-btn" id="btn-go-swim">🏊‍♂️ 수영 도전하러 가기</button>
+            <button class="menu-btn" id="btn-go-gym">🏋️‍♂️ 체육관에서 훈련하기 (체력 충전)</button>
+            <button class="menu-btn" id="btn-go-shop">🛒 상점 방문하기</button>
+        </div>
+
+        <!-- 난이도 선택 화면 (HTML UI) -->
+        <div id="difficulty-ui" class="overlay-ui" style="display: none;">
+            <h2>🌊 수영 난이도 선택</h2>
+            <p class="ui-desc">도전할 수영장의 난이도를 골라주세요!</p>
+            <button class="menu-btn diff-btn easy" data-diff="easy">🟢 초급 수영장</button>
+            <button class="menu-btn diff-btn normal" data-diff="normal">🟡 중급 수영장</button>
+            <button class="menu-btn diff-btn hard" data-diff="hard">🔴 고급 수영장</button>
+            <button class="menu-btn back-btn" id="btn-diff-back">🚪 로비로 돌아가기</button>
+        </div>
+
+        <!-- 상점 화면 (HTML UI) -->
+        <div id="shop-ui" class="overlay-ui" style="display: none;">
+            <h2>🛒 요술 상점</h2>
+            <p class="ui-desc">코인으로 유용한 아이템을 살 수 있어요!</p>
+            <div class="shop-info">현재 보유 코인: <span id="shop-coins">0</span>💰</div>
+            <div class="shop-items">
+                <div class="shop-item">
+                    <img class="shop-item-img" src="assets/item_drink.png" alt="체력 드링크">
+                    <div class="shop-item-info">
+                        <span class="item-name">체력 드링크</span>
+                        <span class="item-effect">체력 +50 회복</span>
+                    </div>
+                    <button class="buy-btn" id="buy-drink">💰 10 코인</button>
+                </div>
+                <div class="shop-item">
+                    <img class="shop-item-img" src="assets/item_fins.png" alt="오리발">
+                    <div class="shop-item-info">
+                        <span class="item-name">오리발</span>
+                        <span class="item-effect">수영 이동 속도 상승</span>
+                    </div>
+                    <button class="buy-btn" id="buy-fins">💰 30 코인</button>
+                </div>
+                <div class="shop-item">
+                    <img class="shop-item-img" src="assets/item_goggles.png" alt="물안경">
+                    <div class="shop-item-info">
+                        <span class="item-name">물안경</span>
+                        <span class="item-effect">장애물 피해 50% 감소</span>
+                    </div>
+                    <button class="buy-btn" id="buy-goggles">💰 25 코인</button>
+                </div>
+            </div>
+            <button class="menu-btn back-btn" id="btn-shop-back" style="margin-top: 15px;">🚪 로비로 돌아가기</button>
         </div>
         
         <!-- 게임 화면이 그려질 도화지(캔버스)입니다 -->
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <canvas id="gameCanvas" width="450" height="800"></canvas>
     </div>
     
     <!-- 게임의 로직을 담당하는 자바스크립트 파일 연결 -->

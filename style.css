@@ -22,45 +22,266 @@ canvas {
     display: block;
 }
 
-/* UI 레이어 (캔버스 위에 덮어씌움) */
-#ui-layer {
+/* UI 레이어 및 공통 Overlay UI (로블록스 스타일) */
+#ui-layer, .overlay-ui {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
+    background-color: rgba(27, 37, 48, 0.92); /* 로블록스 특유의 짙은 반투명 청회색 */
+    border: 4px solid #ffffff; /* 흰색 두꺼운 테두리 */
+    border-radius: 8px; /* 블록 느낌을 위해 모서리를 각지게 설정 */
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 10;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
-#ui-layer h2 {
+#ui-layer h2, .overlay-ui h2 {
     font-size: 40px;
-    margin-bottom: 30px;
-    color: #333;
+    margin: 0 0 10px 0;
+    color: #ffffff;
+    font-weight: 900;
+    text-shadow: 3px 3px 0px #000000; /* 검정색 두꺼운 텍스트 그림자 */
+    letter-spacing: -1px;
+}
+
+.ui-desc {
+    font-size: 18px;
+    color: #aaaaaa;
+    margin: 0 0 25px 0;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px #000000;
 }
 
 .character-list {
-    display: flex;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
+/* 캐릭터 선택 버튼 */
 .char-btn {
-    font-size: 50px;
-    padding: 20px 40px;
+    padding: 10px;
     cursor: pointer;
-    background-color: #f0f0f0;
-    border: 3px solid #ccc;
-    border-radius: 15px;
-    transition: transform 0.2s, background-color 0.2s;
+    background-color: rgba(38, 50, 68, 0.95);
+    border: 3px solid #ffffff;
+    border-radius: 8px;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 6px 0 #1b2530; /* 3D 입체 단추 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 130px;
+    height: 160px;
+    box-sizing: border-box;
 }
 
 .char-btn:hover {
-    transform: scale(1.1);
-    background-color: #ffeb3b;
-    border-color: #fbc02d;
+    transform: translateY(-4px);
+    background-color: rgba(58, 70, 98, 0.95);
+    border-color: #ffeb3b;
+    box-shadow: 0 10px 0 #1b2530;
 }
+
+.char-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #1b2530;
+}
+
+.char-select-img {
+    width: 90px;
+    height: 130px;
+    object-fit: contain;
+}
+
+/* 메뉴 및 컨트롤 버튼 (로블록스 스타일) */
+.menu-btn {
+    font-size: 20px;
+    font-weight: 900;
+    padding: 12px 24px;
+    margin-bottom: 15px;
+    width: 320px;
+    cursor: pointer;
+    background-color: #00bcd4; /* 하늘색 */
+    border: 3px solid #ffffff;
+    border-radius: 6px;
+    color: #ffffff;
+    text-shadow: 2px 2px 0px #000000;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 5px 0 #00838f;
+    box-sizing: border-box;
+}
+
+.menu-btn:hover {
+    transform: translateY(-2px);
+    background-color: #26c6da;
+    box-shadow: 0 7px 0 #00838f;
+}
+
+.menu-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #00838f;
+}
+
+/* 플레이 / 도전 버튼 */
+.play-btn {
+    background-color: #4caf50; /* 초록색 */
+    box-shadow: 0 5px 0 #2e7d32;
+}
+.play-btn:hover {
+    background-color: #66bb6a;
+    box-shadow: 0 7px 0 #2e7d32;
+}
+.play-btn:active {
+    box-shadow: 0 2px 0 #2e7d32;
+}
+
+/* 뒤로가기 / 나가기 버튼 */
+.back-btn {
+    background-color: #f44336; /* 빨간색 */
+    box-shadow: 0 5px 0 #c62828;
+    margin-top: 10px;
+}
+.back-btn:hover {
+    background-color: #ef5350;
+    box-shadow: 0 7px 0 #c62828;
+}
+.back-btn:active {
+    box-shadow: 0 2px 0 #c62828;
+}
+
+/* 난이도 선택 버튼 */
+.diff-btn.easy {
+    background-color: #4caf50;
+    box-shadow: 0 5px 0 #2e7d32;
+}
+.diff-btn.easy:hover { background-color: #66bb6a; box-shadow: 0 7px 0 #2e7d32; }
+.diff-btn.easy:active { box-shadow: 0 2px 0 #2e7d32; }
+
+.diff-btn.normal {
+    background-color: #ff9800; /* 오렌지 */
+    box-shadow: 0 5px 0 #ef6c00;
+}
+.diff-btn.normal:hover { background-color: #ffb74d; box-shadow: 0 7px 0 #ef6c00; }
+.diff-btn.normal:active { box-shadow: 0 2px 0 #ef6c00; }
+
+.diff-btn.hard {
+    background-color: #f44336;
+    box-shadow: 0 5px 0 #c62828;
+}
+.diff-btn.hard:hover { background-color: #ef5350; box-shadow: 0 7px 0 #c62828; }
+.diff-btn.hard:active { box-shadow: 0 2px 0 #c62828; }
+
+/* 상점 UI */
+.shop-info {
+    font-size: 22px;
+    font-weight: 900;
+    margin-bottom: 18px;
+    background-color: #ffeb3b; /* 로블록스 코인 골드 */
+    color: #333333;
+    padding: 8px 24px;
+    border-radius: 6px;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 0 #fdd835;
+}
+
+.shop-items {
+    display: flex;
+    flex-direction: column; /* 모바일을 위해 세로 배치 */
+    gap: 12px;
+    margin-bottom: 15px;
+    width: 100%;
+    align-items: center;
+}
+
+.shop-item {
+    background: rgba(38, 50, 68, 0.95);
+    border: 3px solid #ffffff;
+    border-radius: 6px;
+    padding: 10px 15px;
+    width: 350px; /* 세로형으로 넓직하게 배치 */
+    display: flex;
+    flex-direction: row; /* 가로 가로 구조 */
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 5px 0 #1b2530;
+    color: #ffffff;
+    box-sizing: border-box;
+}
+
+.shop-item:hover {
+    border-color: #ffeb3b;
+}
+
+.shop-item-img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
+.shop-item-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex-grow: 1;
+    margin-left: 15px;
+    gap: 2px;
+}
+
+.item-name {
+    font-size: 16px;
+    font-weight: 900;
+    text-shadow: 1px 1px 0px #000;
+    margin: 0;
+}
+
+.item-effect {
+    font-size: 12px;
+    color: #cccccc;
+    text-align: left;
+    text-shadow: 1px 1px 0px #000;
+    margin: 0;
+}
+
+/* 상점 구매 버튼 */
+.buy-btn {
+    font-size: 14px;
+    font-weight: 900;
+    padding: 6px 12px;
+    background-color: #ffeb3b;
+    border: 2px solid #ffffff;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 90px;
+    color: #333333;
+    box-shadow: 0 3px 0 #fdd835;
+    transition: transform 0.05s, box-shadow 0.05s;
+    box-sizing: border-box;
+}
+
+.buy-btn:hover {
+    background-color: #fff176;
+}
+
+.buy-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #fdd835;
+}
+
+.buy-btn:disabled {
+    background-color: #555555;
+    border-color: #777777;
+    color: #999999;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+
+
