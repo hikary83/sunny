@@ -49,8 +49,8 @@ const characters = {
 for (let charKey in characters) {
     const charInfo = characters[charKey];
     charInfo.dirs.forEach(d => {
-        const imgKey = `char_${charInfo.prefix}_${d}`;
-        imageSources[imgKey] = `assets/player_${charInfo.prefix}_${d}.png`;
+        const imgKey = "char_" + charInfo.prefix + "_" + d;
+        imageSources[imgKey] = "assets/player_" + charInfo.prefix + "_" + d + ".png";
     });
 }
 
@@ -134,7 +134,7 @@ let keys = {};
 // 1. 캐릭터 선택 및 게임 시작
 charButtons.forEach(button => {
     button.addEventListener('click', (e) => {
-        playerCharacter = e.currentTarget.getAttribute('data-char');
+        playerCharacter = button.getAttribute('data-char');
         uiLayer.style.display = 'none';
         showHubMenu();
     });
@@ -243,23 +243,120 @@ window.addEventListener('keyup', (e) => {
     keys[e.code] = false;
 });
 
-// 마우스 클릭 (훈련용)
+// --- 모바일 터치 및 드래그 조작 변수 ---
+let isDraggingPlayer = false;
+let lastDragX = 0;
+let lastDragY = 0;
+
+function handleStart(x, y) {
+    if (gameState === 'SWIMMING_POOL' && !showSwimResult) {
+        isDraggingPlayer = true;
+        lastDragX = x;
+        lastDragY = y;
+    }
+}
+
+function handleMove(x, y) {
+    if (gameState === 'SWIMMING_POOL' && !showSwimResult && isDraggingPlayer) {
+        const dx = x - lastDragX;
+        const dy = y - lastDragY;
+        
+        playerX += dx;
+        playerY += dy;
+        
+        // 경계선 제한
+        if (playerX < 40) playerX = 40;
+        if (playerX > canvas.width - 40) playerX = canvas.width - 40;
+        if (playerY < 145) playerY = 145;
+        if (playerY > canvas.height - 60) playerY = canvas.height - 60;
+        
+        // 이동 델타에 따라 수영 각도(playerDir) 결정
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (Math.abs(dx) > 1.5) {
+                playerDir = dx > 0 ? 'right' : 'left';
+            }
+        } else {
+            if (Math.abs(dy) > 1.5) {
+                playerDir = dy > 0 ? 'down' : 'up';
+            }
+        }
+        
+        lastDragX = x;
+        lastDragY = y;
+    }
+}
+
+function handleEnd() {
+    isDraggingPlayer = false;
+}
+
+// 마우스 클릭 및 드래그 이벤트 (PC용)
 canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
     if (gameState === 'TRAIN_MOUSE' && targetBubble.active) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const dx = mouseX - targetBubble.x;
-        const dy = mouseY - targetBubble.y;
+        const dx = x - targetBubble.x;
+        const dy = y - targetBubble.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-
         if (distance <= targetBubble.radius) {
             playerCoins++;
             playerEnergy = Math.min(100, playerEnergy + 3); 
             spawnBubble();
         }
+    } else {
+        handleStart(x, y);
     }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleMove(x, y);
+});
+
+window.addEventListener('mouseup', () => {
+    handleEnd();
+});
+
+// 터치 이벤트 (모바일용)
+canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const y = e.touches[0].clientY - rect.top;
+        
+        if (gameState === 'TRAIN_MOUSE' && targetBubble.active) {
+            const dx = x - targetBubble.x;
+            const dy = y - targetBubble.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance <= targetBubble.radius) {
+                playerCoins++;
+                playerEnergy = Math.min(100, playerEnergy + 3); 
+                spawnBubble();
+            }
+        } else {
+            handleStart(x, y);
+        }
+    }
+    // 수영장에서 화면 스크롤 바운스 방지
+    if (gameState === 'SWIMMING_POOL') e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const y = e.touches[0].clientY - rect.top;
+        handleMove(x, y);
+    }
+    if (gameState === 'SWIMMING_POOL') e.preventDefault();
+}, { passive: false });
+
+window.addEventListener('touchend', () => {
+    handleEnd();
 });
 
 
@@ -527,7 +624,7 @@ function finishSwim(isWin) {
         else if (currentDifficulty === 'hard') rewardCoins = 50;
 
         playerCoins += rewardCoins;
-        swimResultMsg = `🎉 완주 성공! 보상: +${rewardCoins} 코인`;
+        swimResultMsg = "🎉 완주 성공! 보상: +" + rewardCoins + " 코인";
     } else {
         swimResultMsg = "💤 체력 충전이 필요해요! 체육관에서 충전하고 다시 도전해 봐요!";
     }
@@ -730,7 +827,7 @@ function draw() {
             if (isAssetsLoaded && obsImg && obsImg.complete && obsImg.naturalHeight > 0) {
                 ctx.drawImage(obsImg, obs.x - obs.size, obs.y - obs.size, obs.size * 2, obs.size * 2);
             } else {
-                ctx.font = `${obs.size * 1.2}px Arial`;
+                ctx.font = (obs.size * 1.2) + "px Arial";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(obs.symbol, obs.x, obs.y);
@@ -748,7 +845,7 @@ function draw() {
             const charInfo = characters[playerCharacter];
             if (charInfo) {
                 // 현재 이동 방향에 해당하는 3D Voxel 이미지 키 선택
-                const imgKey = `char_${charInfo.prefix}_${playerDir}`;
+                const imgKey = "char_" + charInfo.prefix + "_" + playerDir;
                 const pImg = images[imgKey];
                 
                 if (isAssetsLoaded && pImg && pImg.complete && pImg.naturalHeight > 0) {
