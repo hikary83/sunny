@@ -94,6 +94,7 @@ const btnGymExit = document.getElementById('btn-gym-exit');
 const btnGoSwim = document.getElementById('btn-go-swim');
 const btnGoGym = document.getElementById('btn-go-gym');
 const btnGoShop = document.getElementById('btn-go-shop');
+const btnChangeChar = document.getElementById('btn-change-char');
 
 // 난이도 및 상점 조작 버튼들
 const diffButtons = document.querySelectorAll('.diff-btn[data-diff]');
@@ -153,6 +154,11 @@ btnGoSwim.addEventListener('click', () => {
 });
 btnGoGym.addEventListener('click', showGymMenu);
 btnGoShop.addEventListener('click', showShopMenu);
+btnChangeChar.addEventListener('click', () => {
+    gameState = 'START_MENU';
+    hideAllUIs();
+    uiLayer.style.display = 'flex';
+});
 
 // 3. 체육관 메뉴 조작
 btnMouse.addEventListener('click', () => {
