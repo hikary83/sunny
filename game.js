@@ -1356,6 +1356,7 @@ function startSwimmingRace(stageNum) {
     raceState.gifts = [];
     raceState.backgroundScrollY = 0;
     raceState.raceResults = null;
+    raceState.playerAnimFrame = 0; // 플레이어 애니메이션 전용 프레임
     
     // NPC들 생성
     raceState.competitors = [];
@@ -1372,6 +1373,7 @@ function startSwimmingRace(stageNum) {
             y: 650,
             baseSpeed: baseSpeed,
             currentSpeed: baseSpeed,
+            animFrame: 0, // NPC 개별 애니메이션 프레임
             color: "hsl(" + (i * 60) + ", 70%, 60%)" // 수영복 색 차이
         });
     }
@@ -1409,6 +1411,7 @@ function updateRaceLogic() {
     
     raceState.playerSpeed = targetSpeed;
     raceState.distance += raceState.playerSpeed * 0.3; // 진행 거리 누적
+    raceState.playerAnimFrame += raceState.playerSpeed * 2.0; // 속도 비례 프레임 가속
     
     // 2. 레인 좌표 보간 (부드러운 좌우 롤링)
     const targetX = getLaneCenterX(raceState.playerLane, details.lanes);
@@ -1495,6 +1498,7 @@ function updateRaceLogic() {
     raceState.competitors.forEach(npc => {
         // NPC들의 가상 전진 거리를 속도 비율로 계산하여 플레이어와의 상대 y좌표를 시뮬레이션
         npc.y -= (raceState.playerSpeed - npc.currentSpeed) * 0.8;
+        npc.animFrame += npc.currentSpeed * 2.0; // 속도 비례 개별 프레임 가속
         
         // NPC들이 화면 밖에 너무 쳐지거나 앞서나가는 한계 제한
         if (npc.y < 120) npc.y = 120;
@@ -1681,10 +1685,41 @@ function drawHuman(ctx, x, y, gender, lv, dir, animTime) {
         ctx.translate(x, y);
         ctx.scale(1.0, heightScale);
         
-        // 흔들림 애니메이션 효과
+        // 수영 시 엎드린 자세 롤링 애니메이션 효과 (속도 비례)
         if (animTime > 0) {
-            const sway = Math.sin(animTime / 100) * 3;
+            // 어깨 롤링 좌우 회전 (속도 프레임 기반)
+            const sway = Math.sin(animTime * 0.06) * 10; // 약 10도 회전
             ctx.rotate(sway * Math.PI / 180);
+            
+            // 어깨 롤링 시 가로 폭을 비틀어 3D 엎드린 수영 각도 시뮬레이션
+            const rollStretch = 0.9 + Math.abs(Math.sin(animTime * 0.06)) * 0.12;
+            ctx.scale(rollStretch, 1.0);
+            
+            // 실시간 수영 물방울/물보라 렌더링 (이미지 밑 레이어에 깔아 입체감 증폭)
+            ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+            const splashSide = Math.sin(animTime * 0.06);
+            
+            // 1. 발차기 물보라 (양 다리 교차 물결)
+            const kickWave = Math.cos(animTime * 0.1);
+            ctx.beginPath();
+            ctx.arc(-12, 45 + kickWave * 6, 8 + Math.abs(kickWave) * 5, 0, Math.PI * 2);
+            ctx.arc(12, 45 - kickWave * 6, 8 + Math.abs(kickWave) * 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 2. 팔젓기 물보라 (좌우 손교차)
+            ctx.beginPath();
+            if (splashSide > 0) {
+                // 왼손 스트로크 지점 물결
+                ctx.arc(-24, -15, 6 + splashSide * 10, 0, Math.PI * 2);
+            } else {
+                // 오른손 스트로크 지점 물결
+                ctx.arc(24, -15, 6 - splashSide * 10, 0, Math.PI * 2);
+            }
+            ctx.fill();
+        } else {
+            // 로비 대기 상태: 잔잔한 기본 숨쉬기 흔들림
+            const idleSway = Math.sin(Date.now() / 150) * 2;
+            ctx.rotate(idleSway * Math.PI / 180);
         }
         
         const w = 80;
@@ -1844,7 +1879,7 @@ function drawSwimmingRace() {
     
     // 3. NPC 렌더링 (이름표 동시 출력)
     raceState.competitors.forEach(npc => {
-        drawHuman(ctx, npc.x, npc.y, 'boy', 4, 'up', Date.now() + npc.baseSpeed * 100);
+        drawHuman(ctx, npc.x, npc.y, 'boy', 4, 'up', npc.animFrame);
         
         // NPC 이름 태그
         ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
@@ -1861,7 +1896,7 @@ function drawSwimmingRace() {
         shouldDraw = false;
     }
     if (shouldDraw) {
-        drawHuman(ctx, raceState.playerX, raceState.playerY, player.gender, player.level, 'up', Date.now());
+        drawHuman(ctx, raceState.playerX, raceState.playerY, player.gender, player.level, 'up', raceState.playerAnimFrame);
         
         // 플레이어 내이름 태그
         ctx.fillStyle = "rgba(46, 204, 113, 0.8)";
