@@ -188,6 +188,7 @@ function initPlayerData() {
         hideAllUIs();
         hubUi.style.display = 'flex';
         updateLobbyUI();
+        sfx.startBgm();
     } else {
         player.code = generateContinueCode();
         gameState = 'START_MENU';
@@ -440,6 +441,7 @@ btnStartGame.addEventListener('click', () => {
     hideAllUIs();
     hubUi.style.display = 'flex';
     updateLobbyUI();
+    sfx.startBgm(); // BGM 기동
 });
 
 btnLoadCode.addEventListener('click', () => {
@@ -449,8 +451,25 @@ btnLoadCode.addEventListener('click', () => {
         gameState = 'HUB_LOBBY';
         hideAllUIs();
         hubUi.style.display = 'flex';
+        sfx.startBgm(); // BGM 기동
     } else {
         alert("해당 코드를 찾을 수 없습니다. 다시 한 번 확인해 주세요.");
+    }
+});
+
+// 소리 음소거 토글 버튼
+const btnToggleSound = document.getElementById('btn-toggle-sound');
+if (btnToggleSound) {
+    btnToggleSound.addEventListener('click', () => {
+        const muted = sfx.toggleMute();
+        btnToggleSound.innerText = muted ? "🔇 소리 켜기" : "🔊 소리 끄기";
+    });
+}
+
+// 공통 버튼 클릭 효과음 (이벤트 위임)
+document.getElementById('game-container').addEventListener('click', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+        sfx.playTick();
     }
 });
 
@@ -780,9 +799,11 @@ function finishGymTraining(isSuccess) {
         
         player.coins += rewardCoins;
         savePlayerData();
+        sfx.playVictory(); // 우승 효과음
         
         triggerFeedback("🎉 훈련 성공! 능력치 성장 & +" + (rewardCoins) + "코인 획득!");
     } else {
+        sfx.playFailure(); // 실패 효과음
         triggerFeedback("😢 아쉽게 실패했습니다. 다시 도전해보세요!");
     }
 }
@@ -1115,6 +1136,7 @@ function handleGymTouchOrClick(x, y) {
             const dist = Math.hypot(x - target.x, y - target.y);
             if (dist <= target.radius) {
                 gymState.score++;
+                sfx.playCoin(); // 피드백 효과음
                 if (gymState.score >= 10) {
                     finishGymTraining(true);
                 } else {
@@ -1179,6 +1201,7 @@ function handleGymTouchOrClick(x, y) {
             
             if (success) {
                 gymState.score++;
+                sfx.playCoin(); // 리듬 히트 효과음
                 triggerFeedback("🎵 PERFECT!");
             }
         }
@@ -1189,6 +1212,7 @@ function handleGymTouchOrClick(x, y) {
                 if (x >= card.x && x <= card.x + card.w && y >= card.y && y <= card.y + card.h) {
                     card.flipped = true;
                     gymState.selectedCards.push(card);
+                    sfx.playTick(); // 뒤집기 소리
                     
                     if (gymState.selectedCards.length === 2) {
                         // 짝맞추기 검사
@@ -1199,11 +1223,13 @@ function handleGymTouchOrClick(x, y) {
                             card1.matched = true;
                             card2.matched = true;
                             gymState.selectedCards = [];
+                            sfx.playCoin(); // 매칭 성공음
                         } else {
                             setTimeout(() => {
                                 card1.flipped = false;
                                 card2.flipped = false;
                                 gymState.selectedCards = [];
+                                sfx.playFailure(); // 오답 처짐음
                             }, 800);
                         }
                     }
@@ -1428,6 +1454,7 @@ function updateRaceLogic() {
             invulnerableTimer = 60;
             raceState.spurtTimer = 0;
             raceState.playerSpeed *= 0.3;
+            sfx.playCollision(); // 부딪힘 소리
             
             // 집중력 장착 템이 있으면 부딪혀도 덜 튕김
             if (player.equippedGear.includes("goggles")) {
@@ -1444,6 +1471,7 @@ function updateRaceLogic() {
             gift.y = 9999; // 획득 처리
             player.coins += 10;
             savePlayerData();
+            sfx.playCoin(); // 코인 소리
             triggerFeedback("🎁 보물상자 획득! +10 코인");
         }
     });
@@ -1491,6 +1519,13 @@ function updateRaceLogic() {
         }
         
         savePlayerData();
+        
+        if (rank === 1) {
+            sfx.playVictory(); // 우승 팡파레
+        } else {
+            sfx.playFailure(); // 실패 뚱 소리
+        }
+        
         raceState.raceResults = { rank: rank, prize: prize };
     }
 }
@@ -1512,11 +1547,13 @@ canvas.addEventListener('touchend', (e) => {
             // 우측 스와이프
             if (raceState.playerLane < details.lanes - 1) {
                 raceState.playerLane++;
+                sfx.playSplash(); // 튐 효과음
             }
         } else if (diffX < -40) {
             // 좌측 스와이프
             if (raceState.playerLane > 0) {
                 raceState.playerLane--;
+                sfx.playSplash(); // 튐 효과음
             }
         }
     }
@@ -1538,18 +1575,26 @@ canvas.addEventListener('mouseup', (e) => {
         if (diffX > 40) {
             if (raceState.playerLane < details.lanes - 1) {
                 raceState.playerLane++;
+                sfx.playSplash();
             }
         } else if (diffX < -40) {
             if (raceState.playerLane > 0) {
                 raceState.playerLane--;
+                sfx.playSplash();
             }
         } else {
             // 화면 좌/우 단순 탭 클릭을 통해서도 레인 이동 가능하도록 지원
             const clickX = e.clientX - canvas.getBoundingClientRect().left;
             if (clickX < canvas.width / 3) {
-                if (raceState.playerLane > 0) raceState.playerLane--;
+                if (raceState.playerLane > 0) {
+                    raceState.playerLane--;
+                    sfx.playSplash();
+                }
             } else if (clickX > (canvas.width * 2) / 3) {
-                if (raceState.playerLane < details.lanes - 1) raceState.playerLane++;
+                if (raceState.playerLane < details.lanes - 1) {
+                    raceState.playerLane++;
+                    sfx.playSplash();
+                }
             }
         }
     }
@@ -1560,9 +1605,15 @@ window.addEventListener('keydown', (e) => {
     if (gameState === 'SWIMMING_RACE') {
         const details = stageDetails[currentRaceStage];
         if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-            if (raceState.playerLane > 0) raceState.playerLane--;
+            if (raceState.playerLane > 0) {
+                raceState.playerLane--;
+                sfx.playSplash();
+            }
         } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-            if (raceState.playerLane < details.lanes - 1) raceState.playerLane++;
+            if (raceState.playerLane < details.lanes - 1) {
+                raceState.playerLane++;
+                sfx.playSplash();
+            }
         } else if (e.key === ' ' || e.code === 'Space') {
             // 스페이스바로 스퍼트 가속
             triggerRaceSpurt();
@@ -1574,6 +1625,7 @@ function triggerRaceSpurt() {
     if (raceState.spurtCharges > 0 && raceState.spurtTimer <= 0) {
         raceState.spurtCharges--;
         raceState.spurtTimer = 180; // 3초 가속
+        sfx.playSpurt(); // 스퍼트 효과음
         triggerFeedback("💨 폭풍 스퍼트 발동! 슈우우웅!");
     }
 }
