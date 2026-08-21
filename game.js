@@ -1664,9 +1664,9 @@ function drawHuman(ctx, x, y, gender, lv, dir, animTime) {
             ctx.rotate(sway * Math.PI / 180);
         }
         
-        const w = 55;
-        const h = 120;
-        ctx.drawImage(img, -w/2, -h/2 - 15, w, h);
+        const w = 80;
+        const h = 110;
+        ctx.drawImage(img, -w/2, -h/2 - 10, w, h);
         ctx.restore();
         return;
     }
