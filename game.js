@@ -1,59 +1,123 @@
+// 🏆 수영 챔피언: 성장형 스포츠 게임 - JavaScript 로직 (v2.3)
+
+// --- Firebase 가상 연동 & 데이터 모델 ---
+let playerDb = {}; // 가상 클라우드 DB 역할 (로컬 동기화 테스트용)
+
+const presetNicknames = ["마린보이", "인어공주", "물개왕", "아기상어", "펠프스", "태양의후예", "수영천재", "물방울왕자", "바다거북", "아쿠아맨"];
+
+// 초기 플레이어 상태 정의
+let player = {
+    name: "마린보이",
+    gender: "boy",
+    code: "SWIM-0000",
+    coins: 100,
+    level: 1,
+    unlockedStage: 1, // 해금된 최고 스테이지 단계 (1~10)
+    // 4대 능력치
+    strength: 1,
+    endurance: 1,
+    speed: 1,
+    focus: 1,
+    // 장비 인벤토리 및 장착 정보
+    equippedSwimsuit: "basic",
+    equippedGear: "none",
+    ownedSwimsuits: ["basic"],
+    ownedGears: ["none"],
+    // 소모성 버프 상태
+    energyDrinkBoost: 0, // 다음 대회 추가 속도 버프
+    proteinBuff: false,  // 다음 훈련 획득 능력치 2배
+    spurtExtraCharge: 0  // 다음 대회 스퍼트 충전 횟수 추가
+};
+
+// --- DOM 엘리먼트 캐싱 ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// --- 게임 상태 정의 ---
-let gameState = 'START_MENU'; 
+const createCharUi = document.getElementById('create-char-ui');
+const hubUi = document.getElementById('hub-ui');
+const gymUi = document.getElementById('gym-ui');
+const difficultyUi = document.getElementById('difficulty-ui');
+const shopUi = document.getElementById('shop-ui');
+const keyboardPad = document.getElementById('keyboard-pad');
 
-let playerCharacter = null;
-let playerEnergy = 100;
-let playerCoins = 0;
+// 캐릭터 생성 관련
+const btnGenderBoy = document.getElementById('btn-gender-boy');
+const btnGenderGirl = document.getElementById('btn-gender-girl');
+const nameSelect = document.getElementById('name-select');
+const inputLoginCode = document.getElementById('input-login-code');
+const btnLoadCode = document.getElementById('btn-load-code');
+const btnStartGame = document.getElementById('btn-start-game');
 
-// --- 상점 장비 상태 ---
-let hasFins = false;     // 오리발 (속도 증가)
-let hasGoggles = false;  // 물안경 (데미지 반감)
-let playerDir = 'up';    // 캐릭터 수영 방향 (up, down, left, right)
+// 로비 관련
+const lobbyCodeText = document.getElementById('lobby-code-text');
+const displayName = document.getElementById('display-name');
+const displayLevel = document.getElementById('display-level');
+const displayBodyDesc = document.getElementById('display-body-desc');
+const valStrength = document.getElementById('val-strength');
+const valEndurance = document.getElementById('val-endurance');
+const valSpeed = document.getElementById('val-speed');
+const valFocus = document.getElementById('val-focus');
+const fillStrength = document.getElementById('fill-strength');
+const fillEndurance = document.getElementById('fill-endurance');
+const fillSpeed = document.getElementById('fill-speed');
+const fillFocus = document.getElementById('fill-focus');
+const lobbyCoins = document.getElementById('lobby-coins');
+const btnGoSwim = document.getElementById('btn-go-swim');
+const btnGoGym = document.getElementById('btn-go-gym');
+const btnGoShop = document.getElementById('btn-go-shop');
+const btnResetChar = document.getElementById('btn-reset-char');
 
-// --- 이미지 에셋 로더 ---
+// 체육관 관련
+const btnGymBack = document.getElementById('btn-gym-back');
+const gymButtons = [
+    document.getElementById('btn-train-boxing'),
+    document.getElementById('btn-train-lifting'),
+    document.getElementById('btn-train-running'),
+    document.getElementById('btn-train-stretch'),
+    document.getElementById('btn-train-rope'),
+    document.getElementById('btn-train-form'),
+    document.getElementById('btn-train-reaction'),
+    document.getElementById('btn-train-mash'),
+    document.getElementById('btn-train-rhythm'),
+    document.getElementById('btn-train-memory')
+];
+
+// 대회 지도 관련
+const btnDiffBack = document.getElementById('btn-diff-back');
+const stageButtons = Array.from({length: 10}, (_, i) => document.getElementById("btn-stage-" + (i+1)));
+
+// 상점 관련
+const btnShopBack = document.getElementById('btn-shop-back');
+const tabSwimsuit = document.getElementById('tab-swimsuit');
+const tabGear = document.getElementById('tab-gear');
+const tabSupplement = document.getElementById('tab-supplement');
+const shopItemsList = document.getElementById('shop-items-list');
+const shopCoins = document.getElementById('shop-coins');
+
+// --- 게임 엔진 상태 관리 ---
+let gameState = 'START_MENU'; // START_MENU, HUB_LOBBY, GYM_TRAINING, SWIMMING_RACE
+let currentGymGame = ''; // BOXING, LIFTING, RUNNING, STRETCH, ROPE, FORM, REACTION, MASH, RHYTHM, MEMORY
+let currentRaceStage = 1; // 1~10 단계
+let showFeedbackMessage = "";
+let feedbackTimer = 0;
+
+// --- 이미지 리소스 매니저 ---
 const images = {};
-let isAssetsLoaded = false;
-let imagesLoadedCount = 0;
-
 const imageSources = {
-    // 배경 이미지
-    bgGym: 'assets/bg_gym.png',
-    bgWater: 'assets/bg_water.png',
-    bgValley: 'assets/bg_valley.png',
-    bgOcean: 'assets/bg_ocean.png',
-    
-    // 장애물 이미지
-    obsLifebuoy: 'assets/obs_lifebuoy.png',
-    obsBeachball: 'assets/obs_beachball.png',
-    obsLog: 'assets/obs_log.png',
-    obsCrab: 'assets/obs_crab.png',
-    obsShark: 'assets/obs_shark.png',
-    
-    // 상점 아이템 이미지
-    itemDrink: 'assets/item_drink.png',
-    itemFins: 'assets/item_fins.png',
-    itemGoggles: 'assets/item_goggles.png'
+    bg_gym: 'assets/bg_gym.png',
+    bg_water: 'assets/bg_water.png',
+    bg_valley: 'assets/bg_valley.png',
+    bg_ocean: 'assets/bg_ocean.png',
+    item_drink: 'assets/item_drink.png',
+    item_fins: 'assets/item_fins.png',
+    item_goggles: 'assets/item_goggles.png',
+    obs_beachball: 'assets/obs_beachball.png',
+    obs_log: 'assets/obs_log.png',
+    obs_rock: 'assets/obs_rock.png'
 };
 
-// 다중 캐릭터 4방향 수영 이미지 로드
-const characters = {
-    '👽': { prefix: 'stitch', dirs: ['up', 'down', 'left', 'right'] },
-    '🐶': { prefix: 'dog', dirs: ['up', 'down', 'left', 'right'] },
-    '🦖': { prefix: 'dino', dirs: ['up', 'down', 'left', 'right'] },
-    '🐧': { prefix: 'penguin', dirs: ['up', 'down', 'left', 'right'] }
-};
-
-for (let charKey in characters) {
-    const charInfo = characters[charKey];
-    charInfo.dirs.forEach(d => {
-        const imgKey = "char_" + charInfo.prefix + "_" + d;
-        imageSources[imgKey] = "assets/player_" + charInfo.prefix + "_" + d + ".png";
-    });
-}
-
+let imagesLoadedCount = 0;
+let isAssetsLoaded = false;
 const totalImages = Object.keys(imageSources).length;
 
 for (let key in imageSources) {
@@ -63,7 +127,6 @@ for (let key in imageSources) {
         imagesLoadedCount++;
         if (imagesLoadedCount === totalImages) {
             isAssetsLoaded = true;
-            console.log("All game assets loaded successfully.");
         }
     };
     images[key].onerror = () => {
@@ -74,882 +137,1735 @@ for (let key in imageSources) {
     };
 }
 
-// --- UI 요소 선택 ---
-const uiLayer = document.getElementById('ui-layer');
-const missionUi = document.getElementById('mission-ui');
-const hubUi = document.getElementById('hub-ui');
-const difficultyUi = document.getElementById('difficulty-ui');
-const shopUi = document.getElementById('shop-ui');
-const shopCoinsText = document.getElementById('shop-coins');
-const keyboardPad = document.getElementById('keyboard-pad');
-const virtualKeyButtons = document.querySelectorAll('.key-btn:not(#btn-key-esc)');
-const btnKeyEsc = document.getElementById('btn-key-esc');
-
-const charButtons = document.querySelectorAll('.char-btn[data-char]');
-const btnMouse = document.getElementById('btn-mouse');
-const btnKeyboard = document.getElementById('btn-keyboard');
-const btnGymExit = document.getElementById('btn-gym-exit');
-
-// 허브 버튼들
-const btnGoSwim = document.getElementById('btn-go-swim');
-const btnGoGym = document.getElementById('btn-go-gym');
-const btnGoShop = document.getElementById('btn-go-shop');
-const btnChangeChar = document.getElementById('btn-change-char');
-
-// 난이도 및 상점 조작 버튼들
-const diffButtons = document.querySelectorAll('.diff-btn[data-diff]');
-const btnDiffBack = document.getElementById('btn-diff-back');
-const btnShopBack = document.getElementById('btn-shop-back');
-
-const buyDrinkBtn = document.getElementById('buy-drink');
-const buyFinsBtn = document.getElementById('buy-fins');
-const buyGogglesBtn = document.getElementById('buy-goggles');
-
-// --- 미션 관련 변수 ---
-let targetBubble = { x: 225, y: 400, radius: 40, active: false };
-const alphabets = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-let targetKey = "";
-
-// --- 수영 플레이 관련 변수 (세로형 종스크롤 전환) ---
-let playerX = 225; // 450의 중앙
-let playerY = 680; // 화면 아래쪽에 소환
-const playerRadius = 25; 
-let swimDistance = 0;
-const targetDistance = 1500; 
-let obstacles = [];
-let obstacleSpawnTimer = 0;
-let currentDifficulty = 'easy'; 
-let laneOffset = 0; // 위에서 아래로 흐르는 맵 배경용 오프셋
-
-// 무적 관련
-let isInvulnerable = false;
-let invulnerableTimer = 0;
-
-// 결과 메시지 연출
-let showSwimResult = false;
-let swimResultMsg = "";
-let swimResultTimer = 0;
-
-// 입력 키 트래킹
-let keys = {};
-
-// --- 이벤트 리스너 설정 ---
-
-// 1. 캐릭터 선택 및 게임 시작
-charButtons.forEach(button => {
-    button.addEventListener('click', (e) => {
-        playerCharacter = button.getAttribute('data-char');
-        uiLayer.style.display = 'none';
-        showHubMenu();
-    });
-});
-
-// 2. 허브 메뉴 전환
-btnGoSwim.addEventListener('click', () => {
-    if (playerEnergy < 10) {
-        alert("체력이 부족합니다! 체육관에서 훈련하여 충전하거나 상점에서 드링크를 드세요!");
-        return;
+// --- 기기 연동 코드 생성기 ---
+function generateContinueCode() {
+    const chars = "ABCDEFGHJKLMNOPQRSTUVWXYZ23456789"; // 혼동 우려 문자 제거
+    let codeResult = "SWIM-";
+    for (let i = 0; i < 4; i++) {
+        codeResult += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    showDifficultyMenu();
-});
-btnGoGym.addEventListener('click', showGymMenu);
-btnGoShop.addEventListener('click', showShopMenu);
-btnChangeChar.addEventListener('click', () => {
-    gameState = 'START_MENU';
-    hideAllUIs();
-    uiLayer.style.display = 'flex';
-});
-
-// 3. 체육관 메뉴 조작
-btnMouse.addEventListener('click', () => {
-    gameState = 'TRAIN_MOUSE';
-    missionUi.style.display = 'none';
-    spawnBubble();
-});
-
-btnKeyboard.addEventListener('click', () => {
-    gameState = 'TRAIN_KEYBOARD';
-    missionUi.style.display = 'none';
-    keyboardPad.style.display = 'flex'; // 가상 키보드 표시
-    spawnKey();
-});
-
-btnGymExit.addEventListener('click', showHubMenu);
-
-// 가상 키보드 문자 버튼 클릭 이벤트 (모바일)
-virtualKeyButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        if (gameState === 'TRAIN_KEYBOARD') {
-            const keyVal = button.innerText.trim().toUpperCase();
-            if (keyVal === targetKey) {
-                playerCoins++;
-                playerEnergy = Math.min(100, playerEnergy + 3);
-                spawnKey();
-            }
-        }
-    });
-});
-
-// 가상 키보드 ESC 버튼 클릭 이벤트 (모바일)
-btnKeyEsc.addEventListener('click', () => {
-    if (gameState === 'TRAIN_KEYBOARD') {
-        showGymMenu();
-    }
-});
-
-// 4. 난이도 선택 조작
-diffButtons.forEach(button => {
-    button.addEventListener('click', (e) => {
-        currentDifficulty = e.currentTarget.getAttribute('data-diff');
-        difficultyUi.style.display = 'none';
-        startSwimming();
-    });
-});
-btnDiffBack.addEventListener('click', showHubMenu);
-
-// 5. 상점 조작 및 구매
-btnShopBack.addEventListener('click', showHubMenu);
-
-buyDrinkBtn.addEventListener('click', () => {
-    if (playerCoins >= 10 && playerEnergy < 100) {
-        playerCoins -= 10;
-        playerEnergy = Math.min(100, playerEnergy + 50);
-        updateShopUI();
-    } else if (playerEnergy >= 100) {
-        alert("이미 체력이 가득 차 있습니다!");
-    } else {
-        alert("코인이 부족합니다!");
-    }
-});
-
-buyFinsBtn.addEventListener('click', () => {
-    if (playerCoins >= 30 && !hasFins) {
-        playerCoins -= 30;
-        hasFins = true;
-        updateShopUI();
-    } else if (hasFins) {
-        alert("이미 오리발을 보유하고 있습니다!");
-    } else {
-        alert("코인이 부족합니다!");
-    }
-});
-
-buyGogglesBtn.addEventListener('click', () => {
-    if (playerCoins >= 25 && !hasGoggles) {
-        playerCoins -= 25;
-        hasGoggles = true;
-        updateShopUI();
-    } else if (hasGoggles) {
-        alert("이미 물안경을 보유하고 있습니다!");
-    } else {
-        alert("코인이 부족합니다!");
-    }
-});
-
-// 키보드 이벤트 트래킹 (수영용)
-window.addEventListener('keydown', (e) => {
-    keys[e.code] = true;
-
-    if (e.code === 'Escape') {
-        if (gameState === 'TRAIN_MOUSE' || gameState === 'TRAIN_KEYBOARD') {
-            showGymMenu();
-            return;
-        } else if (gameState === 'SWIMMING_POOL') {
-            showHubMenu();
-            return;
-        }
-    }
-
-    // 키보드 훈련 로직
-    if (gameState === 'TRAIN_KEYBOARD') {
-        if (e.key.toUpperCase() === targetKey) {
-            playerCoins++;
-            playerEnergy = Math.min(100, playerEnergy + 3); 
-            spawnKey();
-        }
-    }
-});
-
-window.addEventListener('keyup', (e) => {
-    keys[e.code] = false;
-});
-
-// --- 모바일 터치 및 드래그 조작 변수 ---
-let isDraggingPlayer = false;
-let lastDragX = 0;
-let lastDragY = 0;
-
-function handleStart(x, y) {
-    if (gameState === 'SWIMMING_POOL' && !showSwimResult) {
-        isDraggingPlayer = true;
-        lastDragX = x;
-        lastDragY = y;
-    }
+    return codeResult;
 }
 
-function handleMove(x, y) {
-    if (gameState === 'SWIMMING_POOL' && !showSwimResult && isDraggingPlayer) {
-        const dx = x - lastDragX;
-        const dy = y - lastDragY;
-        
-        playerX += dx;
-        playerY += dy;
-        
-        // 경계선 제한
-        if (playerX < 40) playerX = 40;
-        if (playerX > canvas.width - 40) playerX = canvas.width - 40;
-        if (playerY < 145) playerY = 145;
-        if (playerY > canvas.height - 60) playerY = canvas.height - 60;
-        
-        // 이동 델타에 따라 수영 각도(playerDir) 결정
-        if (Math.abs(dx) > Math.abs(dy)) {
-            if (Math.abs(dx) > 1.5) {
-                playerDir = dx > 0 ? 'right' : 'left';
-            }
-        } else {
-            if (Math.abs(dy) > 1.5) {
-                playerDir = dy > 0 ? 'down' : 'up';
-            }
-        }
-        
-        lastDragX = x;
-        lastDragY = y;
-    }
-}
-
-function handleEnd() {
-    isDraggingPlayer = false;
-}
-
-// 마우스 클릭 및 드래그 이벤트 (PC용)
-canvas.addEventListener('mousedown', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+// 로컬 스토리지 자동 저장
+function savePlayerData() {
+    player.level = Math.floor((player.strength + player.endurance + player.speed + player.focus) / 4);
+    if (player.level < 1) player.level = 1;
     
-    if (gameState === 'TRAIN_MOUSE' && targetBubble.active) {
-        const dx = x - targetBubble.x;
-        const dy = y - targetBubble.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance <= targetBubble.radius) {
-            playerCoins++;
-            playerEnergy = Math.min(100, playerEnergy + 3); 
-            spawnBubble();
-        }
+    // 로컬 스토리지 저장
+    localStorage.setItem('swimmer_save', JSON.stringify(player));
+    
+    // 가상 데이터베이스 동기화
+    playerDb[player.code] = JSON.parse(JSON.stringify(player));
+    localStorage.setItem('swimmer_db_mock', JSON.stringify(playerDb));
+}
+
+// 기기 간 연동 코드로 정보 가져오기
+function loadPlayerDataByCode(codeToLoad) {
+    const cleanCode = codeToLoad.trim().toUpperCase();
+    if (playerDb[cleanCode]) {
+        player = JSON.parse(JSON.stringify(playerDb[cleanCode]));
+        savePlayerData();
+        updateLobbyUI();
+        return true;
+    }
+    return false;
+}
+
+// 로컬 세이브 로드 초기화
+function initPlayerData() {
+    // 가상 DB 복원
+    const mockDbRaw = localStorage.getItem('swimmer_db_mock');
+    if (mockDbRaw) {
+        playerDb = JSON.parse(mockDbRaw);
+    }
+    
+    const localSave = localStorage.getItem('swimmer_save');
+    if (localSave) {
+        player = JSON.parse(localSave);
+        gameState = 'HUB_LOBBY';
+        hideAllUIs();
+        hubUi.style.display = 'flex';
+        updateLobbyUI();
     } else {
-        handleStart(x, y);
+        player.code = generateContinueCode();
+        gameState = 'START_MENU';
+        hideAllUIs();
+        createCharUi.style.display = 'flex';
     }
-});
+}
 
-canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    handleMove(x, y);
-});
+// --- 능력치에 따른 외형 설명 매핑 ---
+function getBodyDescription(lv) {
+    if (lv === 1) return "🧍 빼빼 마른 꿈나무 (외형 1단계)";
+    if (lv === 2) return "🧍 아주 살짝 탄탄해진 느낌 (외형 2단계)";
+    if (lv === 3) return "💪 어깨가 조금 넓어짐 (외형 3단계)";
+    if (lv === 4) return "💪 팔뚝에 근육 라인이 보임 (외형 4단계)";
+    if (lv === 5) return "🏋️ 복근의 윤곽이 드러남 (외형 5단계)";
+    if (lv === 6) return "🏋️ 뚜렷하고 넓어진 어깨프레임 (외형 6단계)";
+    if (lv === 7) return "🏊 멋진 역삼각형 상체형 (외형 7단계)";
+    if (lv === 8) return "🏊 선명하게 박힌 식스팩 복근 (외형 8단계)";
+    if (lv === 9) return "🏆 완벽한 프로 수영선수 피지컬 (외형 9단계)";
+    return "👑 전설의 챔피언 완벽 체형! (외형 10단계)";
+}
 
-window.addEventListener('mouseup', () => {
-    handleEnd();
-});
-
-// 터치 이벤트 (모바일용)
-canvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const y = e.touches[0].clientY - rect.top;
-        
-        if (gameState === 'TRAIN_MOUSE' && targetBubble.active) {
-            const dx = x - targetBubble.x;
-            const dy = y - targetBubble.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance <= targetBubble.radius) {
-                playerCoins++;
-                playerEnergy = Math.min(100, playerEnergy + 3); 
-                spawnBubble();
-            }
-        } else {
-            handleStart(x, y);
-        }
-    }
-    // 수영장에서 화면 스크롤 바운스 방지
-    if (gameState === 'SWIMMING_POOL') e.preventDefault();
-}, { passive: false });
-
-canvas.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const y = e.touches[0].clientY - rect.top;
-        handleMove(x, y);
-    }
-    if (gameState === 'SWIMMING_POOL') e.preventDefault();
-}, { passive: false });
-
-window.addEventListener('touchend', () => {
-    handleEnd();
-});
-
-
-// --- 화면 전환 헬퍼 함수 ---
+// --- UI 업데이트 헬퍼들 ---
 function hideAllUIs() {
-    uiLayer.style.display = 'none';
-    missionUi.style.display = 'none';
+    createCharUi.style.display = 'none';
     hubUi.style.display = 'none';
+    gymUi.style.display = 'none';
     difficultyUi.style.display = 'none';
     shopUi.style.display = 'none';
     keyboardPad.style.display = 'none';
 }
 
-function showHubMenu() {
-    gameState = 'HUB_MENU';
-    hideAllUIs();
-    hubUi.style.display = 'flex';
-    keys = {};
-}
-
-function showGymMenu() {
-    gameState = 'GYM_MENU';
-    hideAllUIs();
-    missionUi.style.display = 'flex';
-}
-
-function showDifficultyMenu() {
-    gameState = 'DIFFICULTY_SELECTION';
-    hideAllUIs();
-    difficultyUi.style.display = 'flex';
-}
-
-function showShopMenu() {
-    gameState = 'SHOP_MENU';
-    hideAllUIs();
-    shopUi.style.display = 'flex';
-    updateShopUI();
-}
-
-function updateShopUI() {
-    shopCoinsText.innerText = playerCoins;
+function updateLobbyUI() {
+    lobbyCodeText.innerText = player.code;
+    displayName.innerText = (player.gender === "boy" ? "👦 " : "👧 ") + player.name;
+    displayLevel.innerText = "Lv." + player.level;
+    displayBodyDesc.innerText = getBodyDescription(player.level);
     
-    if (hasFins) {
-        buyFinsBtn.innerText = "보유 중";
-        buyFinsBtn.disabled = true;
-    } else {
-        buyFinsBtn.innerText = "💰 30 코인";
-        buyFinsBtn.disabled = playerCoins < 30;
-    }
-
-    if (hasGoggles) {
-        buyGogglesBtn.innerText = "보유 중";
-        buyGogglesBtn.disabled = true;
-    } else {
-        buyGogglesBtn.innerText = "💰 25 코인";
-        buyGogglesBtn.disabled = playerCoins < 25;
-    }
-
-    buyDrinkBtn.disabled = playerCoins < 10 || playerEnergy >= 100;
-}
-
-
-// --- 훈련 도우미 함수 ---
-function spawnBubble() {
-    targetBubble.active = true;
-    targetBubble.radius = 40;
-    targetBubble.x = Math.random() * (canvas.width - 100) + 50;
-    targetBubble.y = Math.random() * (canvas.height - 250) + 150;
-}
-
-function spawnKey() {
-    const randomIndex = Math.floor(Math.random() * alphabets.length);
-    targetKey = alphabets[randomIndex];
-}
-
-
-// --- 수영 플레이 도우미 함수 (종스크롤 방식) ---
-function startSwimming() {
-    gameState = 'SWIMMING_POOL';
-    playerX = canvas.width / 2; // 중앙
-    playerY = canvas.height - 120; // 아래 소환
-    swimDistance = 0;
-    obstacles = [];
-    obstacleSpawnTimer = 0;
-    isInvulnerable = false;
-    invulnerableTimer = 0;
-    showSwimResult = false;
-    playerDir = 'up'; // 시작 방향은 위쪽
-    keys = {};
-}
-
-function spawnObstacle() {
-    let obstacleSymbols = [];
-    let speedMin = 3;
-    let speedMax = 5;
+    valStrength.innerText = player.strength;
+    valEndurance.innerText = player.endurance;
+    valSpeed.innerText = player.speed;
+    valFocus.innerText = player.focus;
     
-    if (currentDifficulty === 'easy') {
-        obstacleSymbols = ['🛟', '⚽'];
-        speedMin = 3;
-        speedMax = 5;
-    } else if (currentDifficulty === 'normal') {
-        obstacleSymbols = ['🪵', '🦀'];
-        speedMin = 5;
-        speedMax = 8;
-    } else if (currentDifficulty === 'hard') {
-        obstacleSymbols = ['🦈'];
-        speedMin = 9;
-        speedMax = 12;
-    }
-
-    const randomSymbol = obstacleSymbols[Math.floor(Math.random() * obstacleSymbols.length)];
-    const speed = Math.random() * (speedMax - speedMin) + speedMin;
-    const x = Math.random() * (canvas.width - 80) + 40; // 40px ~ 410px 사이 스폰
+    // 최대 스탯 50 기준 퍼센트 계산
+    fillStrength.style.width = Math.min(100, (player.strength / 50) * 100) + "%";
+    fillEndurance.style.width = Math.min(100, (player.endurance / 50) * 100) + "%";
+    fillSpeed.style.width = Math.min(100, (player.speed / 50) * 100) + "%";
+    fillFocus.style.width = Math.min(100, (player.focus / 50) * 100) + "%";
     
-    obstacles.push({
-        x: x,
-        y: 90, // 상단 헤더 바로 밑에서 스폰
-        speed: speed,
-        symbol: randomSymbol,
-        size: 28, 
-        // 하드 난이도에서는 좌우로 흔들리는 패턴 추가
-        sinWave: currentDifficulty === 'hard' ? Math.random() * 2 + 1.5 : 0,
-        angle: 0
+    lobbyCoins.innerText = player.coins;
+    
+    // 신규 훈련 해금 표시
+    gymButtons.forEach(btn => {
+        if (!btn) return;
+        const req = parseInt(btn.getAttribute('data-req-lv'));
+        if (player.level >= req) {
+            btn.classList.remove('locked');
+            // 자물쇠 제거텍스트
+            const titleEl = btn.querySelector('.course-name');
+            if (titleEl && titleEl.innerText.includes('🔒')) {
+                titleEl.innerText = titleEl.innerText.replace(' 🔒', '');
+            }
+        } else {
+            btn.classList.add('locked');
+        }
+    });
+
+    // 대회 맵 잠금 처리
+    stageButtons.forEach((btn, idx) => {
+        if (!btn) return;
+        const stageNum = idx + 1;
+        const reqLevel = parseInt(btn.getAttribute('data-req-lv'));
+        
+        if (player.level >= reqLevel && stageNum <= player.unlockedStage) {
+            btn.classList.remove('locked');
+            const titleEl = btn.querySelector('.stage-title');
+            if (titleEl && titleEl.innerText.includes('🔒')) {
+                titleEl.innerText = titleEl.innerText.replace(' 🔒', '');
+            }
+        } else {
+            btn.classList.add('locked');
+        }
     });
 }
 
-// 장애물 기호와 로드된 이미지 매핑
-const obstacleImageMap = {
-    '🛟': 'obsLifebuoy',
-    '⚽': 'obsBeachball',
-    '🪵': 'obsLog',
-    '🦀': 'obsCrab',
-    '🦈': 'obsShark'
+// 상점 아이템 리스트 렌더링
+const shopItemsData = {
+    swimsuit: [
+        { id: "swimsuit_basic", name: "기본 수영복", price: 0, desc: "기본 지급 수영복", effect: "없음" },
+        { id: "swimsuit_sport", name: "스포츠 수영복", price: 30, desc: "물살을 가르는 스포티 수영복", effect: "⚡ 스피드 +2" },
+        { id: "swimsuit_pro", name: "프로 레이싱복", price: 80, desc: "전신 저항을 줄여주는 수트", effect: "⚡ 스피드 +4, 💪 근력 +2" },
+        { id: "swimsuit_champ", name: "챔피언 수영복", price: 150, desc: "황금빛 챔피언 아우라 코팅", effect: "⚡ 스피드 +6, 💪 근력 +4" }
+    ],
+    gear: [
+        { id: "gear_cap", name: "알록달록 수영모", price: 15, desc: "머리 저항을 줄여주는 기본 캡", effect: "🫀 지구력 +2" },
+        { id: "gear_goggles", name: "요술 물안경", price: 20, desc: "시야를 확보해주는 필수품", effect: "🧠 집중력 +2" },
+        { id: "gear_fins", name: "아기 오리발", price: 40, desc: "추진력을 높여주는 파란 오리발", effect: "⚡ 스피드 +4" },
+        { id: "gear_progoggles", name: "프로 레이싱 고글", price: 60, desc: "물결 왜곡이 전혀 없는 고글", effect: "🧠 집중력 +4, 🫀 지구력 +1" },
+        { id: "gear_superfins", name: "최고급 오리발", price: 100, desc: "카본 강화 블레이드 탑재 오리발", effect: "⚡ 스피드 +7, 🫀 지구력 +2" }
+    ],
+    supplement: [
+        { id: "supp_choco", name: "에너지 초코바 🍫", price: 5, desc: "빠르게 훈련 의욕을 채워주는 바", effect: "💪 근력 훈련 스탯 즉시 +1" },
+        { id: "supp_drink", name: "파워 에너지 드링크 🥤", price: 10, desc: "다음 대회 출전 시 기본 속도가 증가", effect: "⚡ 다음 대회 1회 속도 증가" },
+        { id: "supp_protein", name: "단백질 보충제 💪", price: 15, desc: "체육관 훈련 시 스탯 획득 2배 버프", effect: "💪 다음 훈련 시 획득 포인트 2배" },
+        { id: "supp_special", name: "골드 스페셜 드링크 ⭐", price: 25, desc: "대회 중 스퍼트 횟수 1회 증가", effect: "⚡ 다음 대회 1회 스퍼트 충전 +1" }
+    ]
 };
 
+let currentShopTab = "swimsuit";
 
-// --- 게임 업데이트 루프 ---
-function update() {
-    if (gameState === 'SWIMMING_POOL') {
-        if (showSwimResult) {
-            swimResultTimer--;
-            if (swimResultTimer <= 0) {
-                showHubMenu();
-            }
-            return;
-        }
-
-        // 1. 캐릭터 조작 (세로 기준 상하좌우 및 방향 설정)
-        const moveSpeed = hasFins ? 7 : 4;
+function renderShop() {
+    shopCoins.innerText = player.coins;
+    shopItemsList.innerHTML = "";
+    
+    const items = shopItemsData[currentShopTab];
+    items.forEach(item => {
+        const isOwned = player.ownedSwimsuits.includes(item.id) || player.ownedGears.includes(item.id);
+        const isEquipped = player.equippedSwimsuit === item.id || player.equippedGear === item.id;
         
-        if (keys['ArrowUp'] || keys['KeyW']) {
-            playerY -= moveSpeed;
-            playerDir = 'up';
-        } else if (keys['ArrowDown'] || keys['KeyS']) {
-            playerY += moveSpeed;
-            playerDir = 'down';
+        let btnText = "💰 " + item.price + " 코인";
+        let btnClass = "shop-item-buy-btn";
+        let isBtnDisabled = false;
+        
+        if (currentShopTab !== "supplement") {
+            if (isEquipped) {
+                btnText = "장착됨";
+                btnClass += " equipped";
+                isBtnDisabled = true;
+            } else if (isOwned) {
+                btnText = "장착하기";
+                btnClass += " owned";
+            }
         }
         
-        if (keys['ArrowLeft'] || keys['KeyA']) {
-            playerX -= moveSpeed;
-            playerDir = 'left';
-        } else if (keys['ArrowRight'] || keys['KeyD']) {
-            playerX += moveSpeed;
-            playerDir = 'right';
+        if (!isOwned && !isBtnDisabled && player.coins < item.price) {
+            isBtnDisabled = true;
         }
+        
+        const card = document.createElement('div');
+        card.className = "shop-item-card";
+        
+        let imgName = "item_drink.png";
+        if (item.id.includes("fins")) imgName = "item_fins.png";
+        else if (item.id.includes("goggles")) imgName = "item_goggles.png";
+        
+        card.innerHTML = "\n            <img class=\"shop-item-img\" src=\"assets/" + (imgName) + "\" alt=\"" + (item.name) + "\">\n            <div class=\"shop-item-info\">\n                <div class=\"shop-item-name\">" + (item.name) + "</div>\n                <div class=\"shop-item-desc\">" + (item.desc) + "</div>\n                <div class=\"shop-item-desc\" style=\"color: #00bcd4; font-weight: bold;\">효과: " + (item.effect) + "</div>\n            </div>\n            <button class=\"" + (btnClass) + "\" " + (isBtnDisabled ? 'disabled' : '') + " data-id=\"" + (item.id) + "\">" + (btnText) + "</button>\n        ";
+        
+        shopItemsList.appendChild(card);
+    });
 
-        // 경계선 제한 (헤더 및 진행바 영역 확보)
-        if (playerX < 40) playerX = 40;
-        if (playerX > canvas.width - 40) playerX = canvas.width - 40;
-        if (playerY < 145) playerY = 145;
-        if (playerY > canvas.height - 60) playerY = canvas.height - 60;
+    // 상점 안 버튼 클릭 리스너 바인딩
+    document.querySelectorAll('.shop-item-buy-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const itemId = e.target.getAttribute('data-id');
+            handleShopPurchase(itemId);
+        });
+    });
+}
 
-        // 2. 무적 타이머
-        if (isInvulnerable) {
-            invulnerableTimer--;
-            if (invulnerableTimer <= 0) {
-                isInvulnerable = false;
+function handleShopPurchase(itemId) {
+    let matchedItem = null;
+    let category = "";
+    
+    for (let cat in shopItemsData) {
+        matchedItem = shopItemsData[cat].find(i => i.id === itemId);
+        if (matchedItem) {
+            category = cat;
+            break;
+        }
+    }
+    
+    if (!matchedItem) return;
+    
+    // 스킨/장비 이미 보유중이면 장착만 함
+    const isOwned = player.ownedSwimsuits.includes(itemId) || player.ownedGears.includes(itemId);
+    if (isOwned) {
+        if (category === "swimsuit") player.equippedSwimsuit = itemId;
+        else if (category === "gear") player.equippedGear = itemId;
+        savePlayerData();
+        renderShop();
+        return;
+    }
+    
+    // 구매 진행
+    if (player.coins >= matchedItem.price) {
+        player.coins -= matchedItem.price;
+        
+        if (category === "swimsuit") {
+            player.ownedSwimsuits.push(itemId);
+            player.equippedSwimsuit = itemId;
+            // 스탯 적용
+            if (itemId === "swimsuit_sport") player.speed += 2;
+            else if (itemId === "swimsuit_pro") { player.speed += 4; player.strength += 2; }
+            else if (itemId === "swimsuit_champ") { player.speed += 6; player.strength += 4; }
+        } else if (category === "gear") {
+            player.ownedGears.push(itemId);
+            player.equippedGear = itemId;
+            // 스탯 적용
+            if (itemId === "gear_cap") player.endurance += 2;
+            else if (itemId === "gear_goggles") player.focus += 2;
+            else if (itemId === "gear_fins") player.speed += 4;
+            else if (itemId === "gear_progoggles") { player.focus += 4; player.endurance += 1; }
+            else if (itemId === "gear_superfins") { player.speed += 7; player.endurance += 2; }
+        } else if (category === "supplement") {
+            // 소모품 적용
+            if (itemId === "supp_choco") {
+                player.strength += 1;
+                triggerFeedback("🍫 초코바 냠냠! 근력 +1");
+            } else if (itemId === "supp_drink") {
+                player.energyDrinkBoost += 2;
+                triggerFeedback("🥤 파워에너지 드링크 장전! 다음 대회 속도 증가");
+            } else if (itemId === "supp_protein") {
+                player.proteinBuff = true;
+                triggerFeedback("💪 단백질 셰이크 원샷! 다음 훈련 획득 포인트 2배");
+            } else if (itemId === "supp_special") {
+                player.spurtExtraCharge += 1;
+                triggerFeedback("⭐ 스페셜 드링크! 다음 대회 스퍼트 +1회");
             }
         }
+        
+        savePlayerData();
+        renderShop();
+    }
+}
 
-        // 3. 체력 자연 감소
-        playerEnergy -= 0.03;
-        if (playerEnergy <= 0) {
-            playerEnergy = 0;
-            finishSwim(false);
+function triggerFeedback(msg) {
+    showFeedbackMessage = msg;
+    feedbackTimer = 120;
+}
+
+// --- 이벤트 바인딩 ---
+
+// 1. 캐릭터 생성
+btnGenderBoy.addEventListener('click', () => {
+    btnGenderBoy.classList.add('active');
+    btnGenderGirl.classList.remove('active');
+    player.gender = 'boy';
+});
+btnGenderGirl.addEventListener('click', () => {
+    btnGenderGirl.classList.add('active');
+    btnGenderBoy.classList.remove('active');
+    player.gender = 'girl';
+});
+
+btnStartGame.addEventListener('click', () => {
+    player.name = nameSelect.value;
+    gameState = 'HUB_LOBBY';
+    savePlayerData();
+    hideAllUIs();
+    hubUi.style.display = 'flex';
+    updateLobbyUI();
+});
+
+btnLoadCode.addEventListener('click', () => {
+    const code = inputLoginCode.value;
+    if (loadPlayerDataByCode(code)) {
+        alert("성공적으로 기기 데이터가 연동되었습니다!");
+        gameState = 'HUB_LOBBY';
+        hideAllUIs();
+        hubUi.style.display = 'flex';
+    } else {
+        alert("해당 코드를 찾을 수 없습니다. 다시 한 번 확인해 주세요.");
+    }
+});
+
+btnResetChar.addEventListener('click', () => {
+    if (confirm("정말로 캐릭터를 새로 만드시겠습니까? 기존 기록은 삭제됩니다.")) {
+        localStorage.removeItem('swimmer_save');
+        player = {
+            name: "마린보이",
+            gender: "boy",
+            code: generateContinueCode(),
+            coins: 100,
+            level: 1,
+            unlockedStage: 1,
+            strength: 1,
+            endurance: 1,
+            speed: 1,
+            focus: 1,
+            equippedSwimsuit: "basic",
+            equippedGear: "none",
+            ownedSwimsuits: ["basic"],
+            ownedGears: ["none"],
+            energyDrinkBoost: 0,
+            proteinBuff: false,
+            spurtExtraCharge: 0
+        };
+        gameState = 'START_MENU';
+        hideAllUIs();
+        createCharUi.style.display = 'flex';
+    }
+});
+
+// 2. 허브 메뉴 이동
+btnGoGym.addEventListener('click', () => {
+    gameState = 'GYM_SELECTION';
+    hideAllUIs();
+    gymUi.style.display = 'flex';
+    updateLobbyUI();
+});
+btnGoSwim.addEventListener('click', () => {
+    gameState = 'DIFFICULTY_SELECTION';
+    hideAllUIs();
+    difficultyUi.style.display = 'flex';
+    updateLobbyUI();
+});
+btnGoShop.addEventListener('click', () => {
+    gameState = 'SHOP_MENU';
+    hideAllUIs();
+    shopUi.style.display = 'flex';
+    renderShop();
+});
+
+btnGymBack.addEventListener('click', () => {
+    gameState = 'HUB_LOBBY';
+    hideAllUIs();
+    hubUi.style.display = 'flex';
+    updateLobbyUI();
+});
+btnDiffBack.addEventListener('click', () => {
+    gameState = 'HUB_LOBBY';
+    hideAllUIs();
+    hubUi.style.display = 'flex';
+    updateLobbyUI();
+});
+btnShopBack.addEventListener('click', () => {
+    gameState = 'HUB_LOBBY';
+    hideAllUIs();
+    hubUi.style.display = 'flex';
+    updateLobbyUI();
+});
+
+// 상점 탭 교체
+tabSwimsuit.addEventListener('click', () => {
+    currentShopTab = "swimsuit";
+    tabSwimsuit.classList.add('active');
+    tabGear.classList.remove('active');
+    tabSupplement.classList.remove('active');
+    renderShop();
+});
+tabGear.addEventListener('click', () => {
+    currentShopTab = "gear";
+    tabGear.classList.add('active');
+    tabSwimsuit.classList.remove('active');
+    tabSupplement.classList.remove('active');
+    renderShop();
+});
+tabSupplement.addEventListener('click', () => {
+    currentShopTab = "supplement";
+    tabSupplement.classList.add('active');
+    tabSwimsuit.classList.remove('active');
+    tabGear.classList.remove('active');
+    renderShop();
+});
+
+// 3. 체육관 훈련 선택 바인딩
+gymButtons.forEach(btn => {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        if (btn.classList.contains('locked')) {
+            alert("아직 훈련 레벨에 도달하지 못해 잠겨 있습니다!");
             return;
         }
+        const gameId = btn.id.replace('btn-train-', '').toUpperCase();
+        startGymTraining(gameId);
+    });
+});
 
-        // 4. 거리 누적 (위로 올라가는 연출)
-        swimDistance += hasFins ? 2.5 : 1.8;
-        if (swimDistance >= targetDistance) {
-            finishSwim(true);
+// 4. 대회 스테이지 선택 바인딩
+stageButtons.forEach((btn, idx) => {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        if (btn.classList.contains('locked')) {
+            alert("대회 참가 조건이 안 되거나, 이전 단계를 먼저 우승하셔야 합니다!");
             return;
         }
+        const stageNum = idx + 1;
+        startSwimmingRace(stageNum);
+    });
+});
 
-        // 5. 배경 스크롤 오프셋 (위에서 아래로 흘러내림)
-        laneOffset = (laneOffset + (hasFins ? 5 : 3.5)) % 1000;
 
-        // 6. 장애물 생성 관리
-        let spawnInterval = 80;
-        if (currentDifficulty === 'easy') spawnInterval = 85;
-        else if (currentDifficulty === 'normal') spawnInterval = 60;
-        else if (currentDifficulty === 'hard') spawnInterval = 35;
+// ==========================================
+// --- 체육관 훈련 (미니게임 10종) 논리 엔진 ---
+// ==========================================
 
-        obstacleSpawnTimer++;
-        if (obstacleSpawnTimer >= spawnInterval) {
-            spawnObstacle();
-            obstacleSpawnTimer = 0;
+let gymState = {
+    score: 0,
+    targetCount: 10,
+    timer: 0,
+    elements: [],
+    inputPrompt: "",
+    inputText: "",
+    gameState: "PLAYING"
+};
+
+function startGymTraining(gameId) {
+    hideAllUIs();
+    gameState = 'GYM_TRAINING';
+    currentGymGame = gameId;
+    gymState.score = 0;
+    gymState.gameState = "PLAYING";
+    gymState.elements = [];
+    keyboardPad.style.display = 'none';
+
+    if (gameId === 'BOXING') {
+        gymState.timer = 600; // 10초 프레임 대략
+        spawnPunchingTarget();
+    } else if (gameId === 'LIFTING') {
+        gymState.timer = 0;
+        gymState.targetCount = 5;
+        // 바벨 좌표 [x, y, targetY, isDragging]
+        gymState.elements = [{ x: canvas.width / 2, y: 650, startY: 650, targetY: 200, isDragging: false }];
+    } else if (gameId === 'RUNNING') {
+        gymState.timer = 0;
+        // 미로 경계선 그리기용 데이터 포인트
+        gymState.elements = [];
+        createRunningMaze();
+    } else if (gameId === 'STRETCH') {
+        keyboardPad.style.display = 'flex';
+        gymState.targetCount = 10;
+        spawnStretchKey();
+    } else if (gameId === 'ROPE') {
+        keyboardPad.style.display = 'flex';
+        gymState.targetCount = 5;
+        spawnRopeWord();
+    } else if (gameId === 'FORM') {
+        keyboardPad.style.display = 'flex';
+        gymState.targetCount = 3;
+        spawnFormSentence();
+    } else if (gameId === 'REACTION') {
+        gymState.elements = { status: 'RED', startTime: 0, clickTime: 0, nextChange: Date.now() + 2000 + Math.random() * 3000 };
+    } else if (gameId === 'MASH') {
+        gymState.timer = 300; // 5초
+        gymState.elements = { tapCount: 0, targetTap: 30 };
+    } else if (gameId === 'RHYTHM') {
+        gymState.timer = 600;
+        // 3개 레인, 물방울 생성 루프
+        gymState.elements = [];
+    } else if (gameId === 'MEMORY') {
+        // 카드 8장 생성 (4쌍)
+        const symbols = ['💪', '🫀', '⚡', '🧠', '💪', '🫀', '⚡', '🧠'];
+        // Shuffle
+        for (let i = symbols.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [symbols[i], symbols[j]] = [symbols[j], symbols[i]];
         }
+        gymState.elements = [];
+        for (let i = 0; i < 8; i++) {
+            gymState.elements.push({
+                id: i,
+                symbol: symbols[i],
+                x: 80 + (i % 2) * 160,
+                y: 180 + Math.floor(i / 2) * 130,
+                w: 120,
+                h: 100,
+                flipped: false,
+                matched: false
+            });
+        }
+        gymState.selectedCards = [];
+    }
+}
 
-        // 7. 장애물 이동 및 충돌 체크 (아래로 하강)
-        for (let i = obstacles.length - 1; i >= 0; i--) {
-            const obs = obstacles[i];
-            obs.y += obs.speed; // 아래로 하강
-            
-            if (obs.sinWave > 0) {
-                obs.angle += 0.05;
-                obs.x += Math.sin(obs.angle) * obs.sinWave; // 좌우 흔들림
+// 🥊 복싱 타겟 스폰
+function spawnPunchingTarget() {
+    gymState.elements = [{
+        x: 80 + Math.random() * (canvas.width - 160),
+        y: 200 + Math.random() * (canvas.height - 400),
+        radius: 40,
+        color: '#f44336'
+    }];
+}
+
+// 🧘 스트레칭 단일 키 생성
+const alphabetKeys = "QWERTYUIOPASDFGHJKLZXCVBNM";
+function spawnStretchKey() {
+    gymState.inputPrompt = alphabetKeys.charAt(Math.floor(Math.random() * alphabetKeys.length));
+}
+
+// 🪢 줄넘기 짧은 단어 생성
+const wordList = ["RUN", "SWIM", "JUMP", "FAST", "POOL", "GOLD", "STRETCH", "ROBLOX", "STITCH", "CHAMP"];
+function spawnRopeWord() {
+    gymState.inputPrompt = wordList[Math.floor(Math.random() * wordList.length)];
+    gymState.inputText = "";
+}
+
+// 🏊 수영폼 연습 문장 생성
+const sentenceList = ["SWIM IN THE POOL", "SPEED UP NOW", "GO FOR GOLD MEDAL", "GET THE POWER", "STRETCH YOUR BODY"];
+function spawnFormSentence() {
+    gymState.inputPrompt = sentenceList[Math.floor(Math.random() * sentenceList.length)];
+    gymState.inputText = "";
+}
+
+// 🏃 장애물 미로 생성
+function createRunningMaze() {
+    // 트랙 경로: START(x: 50, y: 700) -> 꼬불꼬불 코스 -> END(x: 380, y: 200)
+    gymState.elements = {
+        startX: 60,
+        startY: 700,
+        endX: 380,
+        endY: 180,
+        path: [
+            { x1: 30, y1: 650, x2: 120, y2: 750 },
+            { x1: 90, y1: 450, x2: 120, y2: 670 },
+            { x1: 90, y1: 420, x2: 300, y2: 480 },
+            { x1: 270, y1: 280, x2: 300, y2: 450 },
+            { x1: 150, y1: 250, x2: 290, y2: 310 },
+            { x1: 150, y1: 120, x2: 180, y2: 270 },
+            { x1: 170, y1: 120, x2: 420, y2: 210 }
+        ],
+        started: false
+    };
+}
+
+// 장애물 트랙 안(흰 도로)에 터치 좌표가 위치하는지 판정
+function isPointInRunningMaze(x, y) {
+    const m = gymState.elements;
+    // 출발점 혹은 종료점 부근은 안전 구역
+    const distToStart = Math.hypot(x - m.startX, y - m.startY);
+    const distToEnd = Math.hypot(x - m.endX, y - m.endY);
+    if (distToStart < 40 || distToEnd < 40) return true;
+    
+    // 경로 라인 중 하나에 들어오는지 판단 (너비 기준 합산)
+    for (let segment of m.path) {
+        // 바운딩 박스 안 인지 판단
+        const minX = Math.min(segment.x1, segment.x2) - 10;
+        const maxX = Math.max(segment.x1, segment.x2) + 10;
+        const minY = Math.min(segment.y1, segment.y2) - 10;
+        const maxY = Math.max(segment.y1, segment.y2) + 10;
+        if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 훈련 완료 후 스탯 증가 처리
+function finishGymTraining(isSuccess) {
+    gymState.gameState = "FINISHED";
+    
+    if (isSuccess) {
+        // 단백질 보충제 버프 여부 (획득 스탯 2배)
+        const mult = player.proteinBuff ? 2 : 1;
+        player.proteinBuff = false; // 버프 초기화
+        
+        let rewardCoins = 0;
+        
+        if (currentGymGame === 'BOXING') {
+            player.strength += 1 * mult;
+            player.speed += 1 * mult;
+            rewardCoins = 10;
+        } else if (currentGymGame === 'LIFTING') {
+            player.strength += 2 * mult;
+            rewardCoins = 15;
+        } else if (currentGymGame === 'RUNNING') {
+            player.speed += 3 * mult;
+            rewardCoins = 25;
+        } else if (currentGymGame === 'STRETCH') {
+            player.endurance += 1 * mult;
+            rewardCoins = 10;
+        } else if (currentGymGame === 'ROPE') {
+            player.endurance += 2 * mult;
+            rewardCoins = 15;
+        } else if (currentGymGame === 'FORM') {
+            player.endurance += 3 * mult;
+            rewardCoins = 25;
+        } else if (currentGymGame === 'REACTION') {
+            player.speed += 2 * mult;
+            rewardCoins = 15;
+        } else if (currentGymGame === 'MASH') {
+            player.strength += 2 * mult;
+            rewardCoins = 15;
+        } else if (currentGymGame === 'RHYTHM') {
+            player.endurance += 2 * mult;
+            rewardCoins = 20;
+        } else if (currentGymGame === 'MEMORY') {
+            player.focus += 3 * mult;
+            rewardCoins = 20;
+        }
+        
+        player.coins += rewardCoins;
+        savePlayerData();
+        
+        triggerFeedback("🎉 훈련 성공! 능력치 성장 & +" + (rewardCoins) + "코인 획득!");
+    } else {
+        triggerFeedback("😢 아쉽게 실패했습니다. 다시 도전해보세요!");
+    }
+}
+
+// 체육관 그리기 로직
+function drawGymTraining() {
+    // 배경
+    if (images.bg_gym && images.bg_gym.complete && images.bg_gym.naturalHeight > 0) {
+        ctx.drawImage(images.bg_gym, 0, 100, canvas.width, canvas.height - 100);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
+    } else {
+        ctx.fillStyle = "#2c3e50";
+        ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
+    }
+    
+    // 타이틀바 그리기
+    ctx.fillStyle = "#1e272e";
+    ctx.fillRect(0, 0, canvas.width, 100);
+    
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 18px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("🏋️ 훈련 중: " + (currentGymGame), canvas.width / 2, 40);
+    
+    if (gymState.gameState === "PLAYING") {
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "#ffeb3b";
+        
+        if (currentGymGame === 'BOXING') {
+            ctx.fillText("남은 목표 터치: " + (10 - gymState.score) + "회", canvas.width / 2, 75);
+            // 과녁 그리기
+            const target = gymState.elements[0];
+            if (target) {
+                ctx.beginPath();
+                ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
+                ctx.fillStyle = target.color;
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+                
+                // 중심 과녁 원선
+                ctx.beginPath();
+                ctx.arc(target.x, target.y, target.radius / 2, 0, Math.PI * 2);
+                ctx.fillStyle = "#ffffff";
+                ctx.fill();
             }
-
-            // 화면 아래로 나간 장애물 제거
-            if (obs.y > canvas.height + 50) {
-                obstacles.splice(i, 1);
-                continue;
-            }
-
-            const dx = playerX - obs.x;
-            const dy = playerY - obs.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+        } else if (currentGymGame === 'LIFTING') {
+            ctx.fillText("역기 들어올리기: " + (gymState.score) + " / 5회 성공", canvas.width / 2, 75);
+            const barbell = gymState.elements[0];
             
-            if (dist < playerRadius + obs.size - 5) {
-                if (!isInvulnerable) {
-                    let damage = 15;
-                    if (currentDifficulty === 'easy') damage = 10;
-                    else if (currentDifficulty === 'normal') damage = 20;
-                    else if (currentDifficulty === 'hard') damage = 35;
+            // 끌고 가야할 목표선 점선 그리기
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = "#4caf50";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, barbell.targetY);
+            ctx.lineTo(canvas.width, barbell.targetY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 바벨 렌더링
+            ctx.fillStyle = "#7f8c8d";
+            ctx.fillRect(barbell.x - 100, barbell.y - 10, 200, 20); // 바 봉
+            ctx.fillStyle = "#2c3e50";
+            ctx.fillRect(barbell.x - 130, barbell.y - 40, 30, 80); // 왼쪽 원판
+            ctx.fillRect(barbell.x + 100, barbell.y - 40, 30, 80); // 오른쪽 원판
+            
+            // 안내 텍스트
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 14px Arial";
+            ctx.fillText("역기를 위쪽 초록 점선까지 꾹~ 드래그하세요!", canvas.width / 2, 750);
+        } else if (currentGymGame === 'RUNNING') {
+            ctx.fillText("장애물 트랙 통과 (START ➡️ END 드래그)", canvas.width / 2, 75);
+            
+            const m = gymState.elements;
+            
+            // 맵 전체 트랙 벽(빨간색 위험구간)과 흰 도로 그리기
+            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(20, 110, canvas.width - 40, canvas.height - 180);
+            
+            // 흰 도로 그리기
+            ctx.lineWidth = 50;
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(m.startX, m.startY);
+            for (let seg of m.path) {
+                ctx.lineTo(seg.x2, seg.y2);
+            }
+            ctx.lineTo(m.endX, m.endY);
+            ctx.stroke();
+            
+            // 출발선 (START)
+            ctx.fillStyle = "#2ecc71";
+            ctx.beginPath();
+            ctx.arc(m.startX, m.startY, 25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 12px Arial";
+            ctx.fillText("START", m.startX, m.startY + 4);
+            
+            // 종료선 (END)
+            ctx.fillStyle = "#f1c40f";
+            ctx.beginPath();
+            ctx.arc(m.endX, m.endY, 25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#000000";
+            ctx.fillText("END", m.endX, m.endY + 4);
+        } else if (currentGymGame === 'STRETCH') {
+            ctx.fillText("가상 키보드로 한 글자 누르기 (" + (gymState.score) + " / " + (gymState.targetCount) + ")", canvas.width / 2, 75);
+            
+            // 대형 타겟 표시
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(canvas.width / 2 - 60, 250, 120, 120);
+            ctx.strokeStyle = "#00bcd4";
+            ctx.lineWidth = 5;
+            ctx.strokeRect(canvas.width / 2 - 60, 250, 120, 120);
+            
+            ctx.fillStyle = "#2c3e50";
+            ctx.font = "bold 55px Arial";
+            ctx.fillText(gymState.inputPrompt, canvas.width / 2, 330);
+        } else if (currentGymGame === 'ROPE') {
+            ctx.fillText("줄넘기: 단어 타이핑 (" + (gymState.score) + " / " + (gymState.targetCount) + ")", canvas.width / 2, 75);
+            
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 20px Arial";
+            ctx.fillText("제시 단어:", canvas.width / 2, 220);
+            
+            ctx.fillStyle = "#ffeb3b";
+            ctx.font = "bold 45px Arial";
+            ctx.fillText(gymState.inputPrompt, canvas.width / 2, 280);
+            
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 30px Arial";
+            ctx.fillText(gymState.inputText + "_", canvas.width / 2, 380);
+        } else if (currentGymGame === 'FORM') {
+            ctx.fillText("수영폼: 문장 타이핑 (" + (gymState.score) + " / " + (gymState.targetCount) + ")", canvas.width / 2, 75);
+            
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 18px Arial";
+            ctx.fillText("제시된 문장:", canvas.width / 2, 220);
+            
+            ctx.fillStyle = "#ffeb3b";
+            ctx.font = "bold 24px Arial";
+            ctx.fillText(gymState.inputPrompt, canvas.width / 2, 270);
+            
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 20px Arial";
+            ctx.fillText(gymState.inputText + "_", canvas.width / 2, 350);
+        } else if (currentGymGame === 'REACTION') {
+            const rx = gymState.elements;
+            
+            // 신호등 렌더링
+            ctx.fillStyle = "#2c3e50";
+            ctx.fillRect(canvas.width / 2 - 60, 200, 120, 300);
+            
+            // 빨간불
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, 270, 40, 0, Math.PI * 2);
+            ctx.fillStyle = (rx.status === 'RED') ? '#ff1744' : '#551122';
+            ctx.fill();
+            
+            // 초록불
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, 410, 40, 0, Math.PI * 2);
+            ctx.fillStyle = (rx.status === 'GREEN') ? '#00e676' : '#114422';
+            ctx.fill();
+            
+            // 텍스트 안내
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 20px Arial";
+            if (rx.status === 'RED') {
+                ctx.fillText("초록불이 켜질 때까지 기다리세요!", canvas.width / 2, 570);
+            } else if (rx.status === 'GREEN') {
+                ctx.fillStyle = "#00e676";
+                ctx.font = "bold 32px Arial";
+                ctx.fillText("터치 하세요 (TAP NOW)!!!", canvas.width / 2, 570);
+            }
+        } else if (currentGymGame === 'MASH') {
+            const tap = gymState.elements;
+            gymState.timer--;
+            
+            ctx.fillText("5초 폭풍 연타! 남은시간: " + (Math.max(0, Math.ceil(gymState.timer / 60))) + "초", canvas.width / 2, 75);
+            
+            // 게이지바
+            ctx.fillStyle = "#34495e";
+            ctx.fillRect(50, 200, canvas.width - 100, 30);
+            
+            const pct = tap.tapCount / tap.targetTap;
+            ctx.fillStyle = "#ff9800";
+            ctx.fillRect(50, 200, (canvas.width - 100) * Math.min(1, pct), 30);
+            
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 14px Arial";
+            ctx.fillText("연타 횟수: " + (tap.tapCount) + " / " + (tap.targetTap), canvas.width / 2, 250);
+            
+            // 큰 연타 원형 버튼
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, 450, 80, 0, Math.PI * 2);
+            ctx.fillStyle = "#e67e22";
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = "#ffffff";
+            ctx.stroke();
+            
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 28px Arial";
+            ctx.fillText("연타!!", canvas.width / 2, 460);
+            
+            if (gymState.timer <= 0) {
+                if (tap.tapCount >= tap.targetTap) {
+                    finishGymTraining(true);
+                } else {
+                    finishGymTraining(false);
+                }
+            }
+        } else if (currentGymGame === 'RHYTHM') {
+            gymState.timer--;
+            ctx.fillText("음악 리듬에 맞춰 물방울 터치!", canvas.width / 2, 75);
+            
+            // 3개 레인 그리기
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+            ctx.lineWidth = 3;
+            for (let i = 1; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * 150, 100);
+                ctx.lineTo(i * 150, 700);
+                ctx.stroke();
+            }
+            
+            // 판정 라인 그리기
+            ctx.strokeStyle = "#00bcd4";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(0, 600);
+            ctx.lineTo(canvas.width, 600);
+            ctx.stroke();
+            
+            // 무작위 노트(물방울) 강하 관리
+            if (gymState.timer % 60 === 0) {
+                const lane = Math.floor(Math.random() * 3);
+                gymState.elements.push({ lane: lane, y: 100, size: 20 });
+            }
+            
+            // 노트 업데이트 및 그리기
+            ctx.fillStyle = "#29b6f6";
+            gymState.elements.forEach((note, idx) => {
+                note.y += 4; // 내려오는 속도
+                
+                ctx.beginPath();
+                ctx.arc(note.lane * 150 + 75, note.y, note.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+            
+            // 화면 밖 나간 노트 삭제
+            gymState.elements = gymState.elements.filter(n => n.y < 750);
+            
+            // 리듬 타겟 횟수 도달 판정
+            if (gymState.score >= 12) {
+                finishGymTraining(true);
+            }
+            if (gymState.timer <= 0 && gymState.score < 12) {
+                finishGymTraining(false);
+            }
+            
+            ctx.fillStyle = "#ffeb3b";
+            ctx.font = "bold 16px Arial";
+            ctx.fillText("퍼펙트 물방울: " + (gymState.score) + " / 12회", canvas.width / 2, 660);
+        } else if (currentGymGame === 'MEMORY') {
+            ctx.fillText("카드 뒤집어 같은 짝 맞추기", canvas.width / 2, 75);
+            
+            // 카드 그리기
+            gymState.elements.forEach(card => {
+                if (card.matched) {
+                    ctx.fillStyle = "#27ae60";
+                    ctx.fillRect(card.x, card.y, card.w, card.h);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "30px Arial";
+                    ctx.fillText(card.symbol, card.x + card.w/2, card.y + card.h/2 + 10);
+                } else if (card.flipped) {
+                    ctx.fillStyle = "#ecf0f1";
+                    ctx.fillRect(card.x, card.y, card.w, card.h);
+                    ctx.fillStyle = "#2c3e50";
+                    ctx.font = "30px Arial";
+                    ctx.fillText(card.symbol, card.x + card.w/2, card.y + card.h/2 + 10);
+                } else {
+                    ctx.fillStyle = "#2c3e50";
+                    ctx.fillRect(card.x, card.y, card.w, card.h);
+                    ctx.strokeStyle = "#7f8c8d";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(card.x, card.y, card.w, card.h);
+                    ctx.fillStyle = "#7f8c8d";
+                    ctx.font = "30px Arial";
+                    ctx.fillText("?", card.x + card.w/2, card.y + card.h/2 + 10);
+                }
+            });
+            
+            // 모두 맞췄는지 판정
+            const allMatched = gymState.elements.every(c => c.matched);
+            if (allMatched) {
+                finishGymTraining(true);
+            }
+        }
+    } else {
+        // 결과 연출 대기 상태
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 24px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("훈련 완료!", canvas.width / 2, 350);
+        ctx.fillText("아래 '나가기'를 눌러 복귀하세요.", canvas.width / 2, 400);
+    }
+}
 
-                    if (hasGoggles) {
-                        damage = Math.floor(damage * 0.5);
-                    }
-
-                    playerEnergy = Math.max(0, playerEnergy - damage);
-                    isInvulnerable = true;
-                    invulnerableTimer = 90;
-
-                    obstacles.splice(i, 1);
-
-                    if (playerEnergy <= 0) {
-                        finishSwim(false);
-                        return;
-                    }
+// 체육관 터치 클릭 조작 감지
+function handleGymTouchOrClick(x, y) {
+    if (gymState.gameState !== "PLAYING") return;
+    
+    if (currentGymGame === 'BOXING') {
+        const target = gymState.elements[0];
+        if (target) {
+            const dist = Math.hypot(x - target.x, y - target.y);
+            if (dist <= target.radius) {
+                gymState.score++;
+                if (gymState.score >= 10) {
+                    finishGymTraining(true);
+                } else {
+                    spawnPunchingTarget();
                 }
             }
         }
+    } else if (currentGymGame === 'LIFTING') {
+        const bar = gymState.elements[0];
+        // 드래그 시작 감지
+        const dist = Math.hypot(x - bar.x, y - bar.y);
+        if (dist < 60) {
+            bar.isDragging = true;
+        }
+    } else if (currentGymGame === 'RUNNING') {
+        const m = gymState.elements;
+        // 출발점 터치 시 시작
+        const dist = Math.hypot(x - m.startX, y - m.startY);
+        if (dist < 30) {
+            m.started = true;
+        }
+    } else if (currentGymGame === 'REACTION') {
+        const rx = gymState.elements;
+        if (rx.status === 'RED') {
+            // 조기 터치 패널티
+            rx.nextChange = Date.now() + 2000 + Math.random() * 3000;
+            alert("조기 출발! 빨간불에는 대기해야 합니다!");
+        } else if (rx.status === 'GREEN') {
+            rx.clickTime = Date.now();
+            const delay = rx.clickTime - rx.startTime;
+            if (delay < 450) {
+                finishGymTraining(true);
+            } else {
+                alert("반응 속도(" + (delay) + "ms)가 너무 느립니다! 450ms 이하를 노려보세요!");
+                startGymTraining('REACTION'); // 재도전
+            }
+        }
+    } else if (currentGymGame === 'MASH') {
+        const tap = gymState.elements;
+        // 마킹 원형 버튼 터치 여부 판단
+        const dist = Math.hypot(x - canvas.width / 2, y - 450);
+        if (dist <= 80) {
+            tap.tapCount++;
+            if (tap.tapCount >= tap.targetTap) {
+                finishGymTraining(true);
+            }
+        }
+    } else if (currentGymGame === 'RHYTHM') {
+        // 하단 판정선(600) 근처 탭 감지
+        if (y >= 540 && y <= 660) {
+            // 어느 라인인지 판정
+            const tapLane = Math.floor(x / 150);
+            
+            // 해당 라인 물방울이 판정선(600) 근처에 있는지 검출
+            let success = false;
+            gymState.elements.forEach(n => {
+                if (n.lane === tapLane && Math.abs(n.y - 600) < 50) {
+                    success = true;
+                    n.y = 999; // 판정 완료 표시
+                }
+            });
+            
+            if (success) {
+                gymState.score++;
+                triggerFeedback("🎵 PERFECT!");
+            }
+        }
+    } else if (currentGymGame === 'MEMORY') {
+        gymState.elements.forEach(card => {
+            if (!card.flipped && !card.matched && gymState.selectedCards.length < 2) {
+                // 터치 바운딩 박스
+                if (x >= card.x && x <= card.x + card.w && y >= card.y && y <= card.y + card.h) {
+                    card.flipped = true;
+                    gymState.selectedCards.push(card);
+                    
+                    if (gymState.selectedCards.length === 2) {
+                        // 짝맞추기 검사
+                        const card1 = gymState.selectedCards[0];
+                        const card2 = gymState.selectedCards[1];
+                        
+                        if (card1.symbol === card2.symbol) {
+                            card1.matched = true;
+                            card2.matched = true;
+                            gymState.selectedCards = [];
+                        } else {
+                            setTimeout(() => {
+                                card1.flipped = false;
+                                card2.flipped = false;
+                                gymState.selectedCards = [];
+                            }, 800);
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 
-function finishSwim(isWin) {
-    showSwimResult = true;
-    swimResultTimer = 180;
+// 드래그 조작 감지
+function handleGymDrag(x, y) {
+    if (gymState.gameState !== "PLAYING") return;
     
-    if (isWin) {
-        let rewardCoins = 15;
-        if (currentDifficulty === 'easy') rewardCoins = 15;
-        else if (currentDifficulty === 'normal') rewardCoins = 30;
-        else if (currentDifficulty === 'hard') rewardCoins = 50;
+    if (currentGymGame === 'LIFTING') {
+        const bar = gymState.elements[0];
+        if (bar.isDragging) {
+            bar.y = y;
+            if (bar.y < bar.targetY) {
+                // 1회 들어올리기 완료
+                bar.isDragging = false;
+                bar.y = bar.startY;
+                gymState.score++;
+                if (gymState.score >= gymState.targetCount) {
+                    finishGymTraining(true);
+                }
+            }
+        }
+    } else if (currentGymGame === 'RUNNING') {
+        const m = gymState.elements;
+        if (m.started) {
+            // 벽(흰 도로 밖) 닿았는지 판정
+            if (!isPointInRunningMaze(x, y)) {
+                m.started = false;
+                alert("코스 이탈! 벽에 부딪혔습니다. 처음부터 다시 가야 합니다!");
+                createRunningMaze();
+                return;
+            }
+            
+            // 종료점(END) 도달 검출
+            const distToEnd = Math.hypot(x - m.endX, y - m.endY);
+            if (distToEnd < 25) {
+                m.started = false;
+                finishGymTraining(true);
+            }
+        }
+    }
+}
 
-        playerCoins += rewardCoins;
-        swimResultMsg = "🎉 완주 성공! 보상: +" + rewardCoins + " 코인";
-    } else {
-        swimResultMsg = "💤 체력 충전이 필요해요! 체육관에서 충전하고 다시 도전해 봐요!";
+function handleGymDragEnd() {
+    if (currentGymGame === 'LIFTING' && gymState.elements[0]) {
+        const bar = gymState.elements[0];
+        bar.isDragging = false;
+        bar.y = bar.startY; // 드롭 시 제자리로 복구
     }
 }
 
 
-// --- 게임 그리기 루프 ---
+// ==========================================
+// --- 10단계 세로 수영 레이스 물리 엔진 ---
+// ==========================================
+
+let raceState = {
+    distance: 0,
+    targetDistance: 1500, // 완주 거리
+    playerLane: 1, // 0~3 레인
+    playerX: 0,
+    playerY: 650,
+    playerSpeed: 0,
+    spurtCharges: 3,
+    spurtTimer: 0,
+    obstacles: [],
+    gifts: [],
+    competitors: [],
+    raceResults: null,
+    backgroundScrollY: 0
+};
+
+// 대회 단계별 이름 및 경쟁 난이도 정의
+const stageDetails = {
+    1: { name: "유치원 수영교실", bg: "bg_water", lanes: 3, npcCount: 3, obstacleRate: 0, npcSpeedMin: 1.5, npcSpeedMax: 2.2 },
+    2: { name: "동네 수영장 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.02, npcSpeedMin: 2.0, npcSpeedMax: 2.7 },
+    3: { name: "학교 수영 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.03, npcSpeedMin: 2.5, npcSpeedMax: 3.2 },
+    4: { name: "구(區) 체육대회", bg: "bg_water", lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 3.0, npcSpeedMax: 3.8 },
+    5: { name: "호수 수영 대회", bg: "bg_lake", lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 3.5, npcSpeedMax: 4.3 },
+    6: { name: "강변 수영 대회", bg: "bg_river", lanes: 4, npcCount: 5, obstacleRate: 0.05, npcSpeedMin: 4.0, npcSpeedMax: 4.8 },
+    7: { name: "급류 수영 대회", bg: "bg_river", lanes: 4, npcCount: 6, obstacleRate: 0.06, npcSpeedMin: 4.5, npcSpeedMax: 5.4 },
+    8: { name: "해변 수영 대회", bg: "bg_beach_ocean", lanes: 4, npcCount: 6, obstacleRate: 0.06, npcSpeedMin: 5.0, npcSpeedMax: 6.0 },
+    9: { name: "암초 수영 대회", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.07, npcSpeedMin: 5.5, npcSpeedMax: 6.6 },
+    10: { name: "대양 챔피언십", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.08, npcSpeedMin: 6.0, npcSpeedMax: 7.2 }
+};
+
+const npcNames = ["민우", "서준", "민준", "도윤", "예준", "시우", "하준", "지호", "우진"];
+
+function startSwimmingRace(stageNum) {
+    hideAllUIs();
+    gameState = 'SWIMMING_RACE';
+    currentRaceStage = stageNum;
+    
+    const details = stageDetails[stageNum];
+    
+    raceState.distance = 0;
+    raceState.playerLane = 1;
+    raceState.playerX = getLaneCenterX(1, details.lanes);
+    raceState.playerY = 650;
+    raceState.playerSpeed = 0;
+    
+    // 드링크류 버프 적용 후 스퍼트 충전 횟수 추가
+    raceState.spurtCharges = 3 + player.spurtExtraCharge;
+    player.spurtExtraCharge = 0; // 버프 소진
+    
+    raceState.spurtTimer = 0;
+    raceState.obstacles = [];
+    raceState.gifts = [];
+    raceState.backgroundScrollY = 0;
+    raceState.raceResults = null;
+    
+    // NPC들 생성
+    raceState.competitors = [];
+    for (let i = 0; i < details.npcCount; i++) {
+        // 무작위로 레인 배정
+        const npcLane = i % details.lanes;
+        const name = npcNames[i % npcNames.length];
+        const baseSpeed = details.npcSpeedMin + Math.random() * (details.npcSpeedMax - details.npcSpeedMin);
+        
+        raceState.competitors.push({
+            name: name,
+            lane: npcLane,
+            x: getLaneCenterX(npcLane, details.lanes),
+            y: 650,
+            baseSpeed: baseSpeed,
+            currentSpeed: baseSpeed,
+            color: "hsl(" + (i * 60) + ", 70%, 60%)" // 수영복 색 차이
+        });
+    }
+}
+
+// 각 레인 중심 X축 좌표 계산
+function getLaneCenterX(laneIdx, totalLanes) {
+    const laneWidth = canvas.width / totalLanes;
+    return laneWidth * laneIdx + laneWidth / 2;
+}
+
+// 피격 등 충격 효과로 깜빡임 연출
+let isInvulnerable = false;
+let invulnerableTimer = 0;
+
+function updateRaceLogic() {
+    if (raceState.raceResults) return; // 골인 연출 중
+    
+    const details = stageDetails[currentRaceStage];
+    
+    // 1. 플레이어 수영 속도 업데이트 (기본 스탯 비례)
+    // 스피드 1점당 +0.08 속도 증가
+    let targetSpeed = 2.5 + (player.speed * 0.08);
+    
+    // 단백질/에너지 드링크 영구/소모 버프가 있으면 추가 속도 적용
+    if (player.energyDrinkBoost > 0) {
+        targetSpeed += 0.8;
+    }
+    
+    // 스퍼트 가속 효과
+    if (raceState.spurtTimer > 0) {
+        targetSpeed += 4.0;
+        raceState.spurtTimer--;
+    }
+    
+    raceState.playerSpeed = targetSpeed;
+    raceState.distance += raceState.playerSpeed * 0.3; // 진행 거리 누적
+    
+    // 2. 레인 좌표 보간 (부드러운 좌우 롤링)
+    const targetX = getLaneCenterX(raceState.playerLane, details.lanes);
+    raceState.playerX += (targetX - raceState.playerX) * 0.15;
+    
+    // 3. 무한 스크롤 배경 업데이트 (수영 속도 비례)
+    raceState.backgroundScrollY += raceState.playerSpeed;
+    if (raceState.backgroundScrollY >= canvas.height) {
+        raceState.backgroundScrollY = 0;
+    }
+    
+    // 무적 상태 관리
+    if (isInvulnerable) {
+        invulnerableTimer--;
+        if (invulnerableTimer <= 0) {
+            isInvulnerable = false;
+        }
+    }
+    
+    // 4. 장애물 하강 및 생성 로직
+    if (Math.random() < details.obstacleRate) {
+        const spawnLane = Math.floor(Math.random() * details.lanes);
+        const symbols = ['obs_beachball', 'obs_log', 'obs_rock'];
+        const chosen = symbols[Math.floor(Math.random() * symbols.length)];
+        
+        raceState.obstacles.push({
+            symbol: chosen,
+            lane: spawnLane,
+            x: getLaneCenterX(spawnLane, details.lanes),
+            y: 0,
+            size: 25
+        });
+    }
+    
+    // 보물 상자 랜덤 스폰
+    if (Math.random() < 0.005) {
+        const spawnLane = Math.floor(Math.random() * details.lanes);
+        raceState.gifts.push({
+            lane: spawnLane,
+            x: getLaneCenterX(spawnLane, details.lanes),
+            y: 0,
+            size: 20
+        });
+    }
+    
+    // 장애물 이동 및 충돌
+    raceState.obstacles.forEach(obs => {
+        obs.y += raceState.playerSpeed * 0.6; // 플레이어 상대적 속도로 통과
+        
+        // 충돌 검사
+        if (!isInvulnerable && Math.abs(obs.x - raceState.playerX) < 35 && Math.abs(obs.y - raceState.playerY) < 40) {
+            // 충돌 시 감속 및 무적 부여
+            isInvulnerable = true;
+            invulnerableTimer = 60;
+            raceState.spurtTimer = 0;
+            raceState.playerSpeed *= 0.3;
+            
+            // 집중력 장착 템이 있으면 부딪혀도 덜 튕김
+            if (player.equippedGear.includes("goggles")) {
+                invulnerableTimer = 40;
+            }
+            triggerFeedback("💥 장애물 충돌! 속도가 느려집니다!");
+        }
+    });
+    
+    // 선물 상자 획득 검사
+    raceState.gifts.forEach(gift => {
+        gift.y += raceState.playerSpeed * 0.6;
+        if (Math.abs(gift.x - raceState.playerX) < 35 && Math.abs(gift.y - raceState.playerY) < 40) {
+            gift.y = 9999; // 획득 처리
+            player.coins += 10;
+            savePlayerData();
+            triggerFeedback("🎁 보물상자 획득! +10 코인");
+        }
+    });
+    
+    // 범위를 완전히 벗어난 장애물 제거
+    raceState.obstacles = raceState.obstacles.filter(o => o.y < canvas.height + 50);
+    raceState.gifts = raceState.gifts.filter(g => g.y < canvas.height + 50);
+    
+    // 5. NPC 움직임 업데이트
+    raceState.competitors.forEach(npc => {
+        // NPC들의 가상 전진 거리를 속도 비율로 계산하여 플레이어와의 상대 y좌표를 시뮬레이션
+        npc.y -= (raceState.playerSpeed - npc.currentSpeed) * 0.8;
+        
+        // NPC들이 화면 밖에 너무 쳐지거나 앞서나가는 한계 제한
+        if (npc.y < 120) npc.y = 120;
+        if (npc.y > 750) npc.y = 750;
+    });
+    
+    // 6. 결승골 검사
+    if (raceState.distance >= raceState.targetDistance) {
+        // 순위 결정
+        let rank = 1;
+        raceState.competitors.forEach(npc => {
+            // NPC의 y좌표가 플레이어보다 위(y값이 더 작음)에 있으면 NPC가 더 앞선 것
+            if (npc.y < raceState.playerY) {
+                rank++;
+            }
+        });
+        
+        // 최종 보상 지급
+        let prize = 20;
+        if (rank === 1) prize = 100;
+        else if (rank === 2) prize = 80;
+        else if (rank === 3) prize = 50;
+        
+        player.coins += prize;
+        
+        // 에너지 보충제 소진
+        if (player.energyDrinkBoost > 0) {
+            player.energyDrinkBoost = 0;
+        }
+        
+        if (rank === 1 && currentRaceStage === player.unlockedStage) {
+            player.unlockedStage = Math.min(10, player.unlockedStage + 1);
+        }
+        
+        savePlayerData();
+        raceState.raceResults = { rank: rank, prize: prize };
+    }
+}
+
+// 상대방 터치/드래그 방향 전환 감지
+let raceDragStartX = 0;
+canvas.addEventListener('touchstart', (e) => {
+    if (gameState === 'SWIMMING_RACE' && e.touches.length > 0) {
+        raceDragStartX = e.touches[0].clientX;
+    }
+});
+
+canvas.addEventListener('touchend', (e) => {
+    if (gameState === 'SWIMMING_RACE' && e.changedTouches.length > 0) {
+        const diffX = e.changedTouches[0].clientX - raceDragStartX;
+        const details = stageDetails[currentRaceStage];
+        
+        if (diffX > 40) {
+            // 우측 스와이프
+            if (raceState.playerLane < details.lanes - 1) {
+                raceState.playerLane++;
+            }
+        } else if (diffX < -40) {
+            // 좌측 스와이프
+            if (raceState.playerLane > 0) {
+                raceState.playerLane--;
+            }
+        }
+    }
+});
+
+// PC 조작용 클릭 및 마우스 스와이프
+let mouseDragStartX = 0;
+canvas.addEventListener('mousedown', (e) => {
+    if (gameState === 'SWIMMING_RACE') {
+        mouseDragStartX = e.clientX;
+    }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    if (gameState === 'SWIMMING_RACE') {
+        const diffX = e.clientX - mouseDragStartX;
+        const details = stageDetails[currentRaceStage];
+        
+        if (diffX > 40) {
+            if (raceState.playerLane < details.lanes - 1) {
+                raceState.playerLane++;
+            }
+        } else if (diffX < -40) {
+            if (raceState.playerLane > 0) {
+                raceState.playerLane--;
+            }
+        } else {
+            // 화면 좌/우 단순 탭 클릭을 통해서도 레인 이동 가능하도록 지원
+            const clickX = e.clientX - canvas.getBoundingClientRect().left;
+            if (clickX < canvas.width / 3) {
+                if (raceState.playerLane > 0) raceState.playerLane--;
+            } else if (clickX > (canvas.width * 2) / 3) {
+                if (raceState.playerLane < details.lanes - 1) raceState.playerLane++;
+            }
+        }
+    }
+});
+
+// 키보드 방향키 조작 백업
+window.addEventListener('keydown', (e) => {
+    if (gameState === 'SWIMMING_RACE') {
+        const details = stageDetails[currentRaceStage];
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+            if (raceState.playerLane > 0) raceState.playerLane--;
+        } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+            if (raceState.playerLane < details.lanes - 1) raceState.playerLane++;
+        } else if (e.key === ' ' || e.code === 'Space') {
+            // 스페이스바로 스퍼트 가속
+            triggerRaceSpurt();
+        }
+    }
+});
+
+function triggerRaceSpurt() {
+    if (raceState.spurtCharges > 0 && raceState.spurtTimer <= 0) {
+        raceState.spurtCharges--;
+        raceState.spurtTimer = 180; // 3초 가속
+        triggerFeedback("💨 폭풍 스퍼트 발동! 슈우우웅!");
+    }
+}
+
+// 10단계 시각 외형 변화를 위한 인체 그리기 함수 (Voxel 리스킨 Fallback 대응)
+function drawHuman(ctx, x, y, gender, lv, dir, animTime) {
+    ctx.save();
+    
+    // 레벨에 따른 키 1.0~1.2 스케일링
+    const heightScale = 1.0 + (Math.min(10, lv) - 1) * 0.02;
+    ctx.translate(x, y);
+    ctx.scale(1.0, heightScale);
+    
+    // 피부 안색 필터 처리 (기본 살구색 -> 레벨이 높을수록 건강한 구릿빛 태닝)
+    let skinColor = "#ffd1a9"; // Lv 1~2 기본
+    if (lv >= 3 && lv <= 4) skinColor = "#e0a97c";
+    if (lv >= 5 && lv <= 7) skinColor = "#bd885c";
+    if (lv >= 8) skinColor = "#966138"; // 챔피언 태닝 피부
+    
+    // 수영복 색 (성별 및 착용 아이템 연동)
+    let suitColor = (gender === 'boy') ? '#2196f3' : '#e91e63'; // 남:파 / 여:분홍
+    if (player.equippedSwimsuit === 'swimsuit_sport') suitColor = '#4caf50';
+    if (player.equippedSwimsuit === 'swimsuit_pro') suitColor = '#1e272e';
+    if (player.equippedSwimsuit === 'swimsuit_champ') suitColor = '#ffeb3b'; // 골드 수영복
+    
+    // --- 수영 역동감 애니메이션 물리 (Sway / Kicking) ---
+    const sway = Math.sin(animTime / 100) * 8;
+    const kick = Math.cos(animTime / 80) * 12;
+    
+    // 1. 다리 드로잉 (발차기)
+    ctx.fillStyle = skinColor;
+    ctx.fillRect(-15, 20 + kick / 3, 8, 20); // 왼 다리
+    ctx.fillRect(7, 20 - kick / 3, 8, 20);  // 오른 다리
+    
+    // 2. 몸통 드로잉 (근력 레벨에 따라 상체 두께 V-Torso 변화)
+    const baseWidth = 26;
+    const muscleBonus = (lv - 1) * 2; // 레벨 1당 어깨 넓어짐
+    
+    ctx.fillStyle = suitColor;
+    ctx.beginPath();
+    ctx.moveTo(-(baseWidth/2 + muscleBonus/2), -30);
+    ctx.lineTo(baseWidth/2 + muscleBonus/2, -30);
+    ctx.lineTo(baseWidth/2 - 2, 20);
+    ctx.lineTo(-(baseWidth/2 - 2), 20);
+    ctx.closePath();
+    ctx.fill();
+    
+    // 3. 팔 드로잉 (자유형 좌우 교차 팔젓기)
+    ctx.strokeStyle = skinColor;
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    
+    // 왼팔
+    ctx.beginPath();
+    ctx.moveTo(-(baseWidth/2 + muscleBonus/2), -25);
+    ctx.lineTo(-(baseWidth/2 + 10), -50 + Math.sin(animTime / 100) * 15);
+    ctx.stroke();
+    
+    // 오른팔
+    ctx.beginPath();
+    ctx.moveTo(baseWidth/2 + muscleBonus/2, -25);
+    ctx.lineTo(baseWidth/2 + 10, -50 - Math.sin(animTime / 100) * 15);
+    ctx.stroke();
+    
+    // 4. 머리 및 수영모 드로잉
+    ctx.beginPath();
+    ctx.arc(0, -45, 16, 0, Math.PI * 2);
+    ctx.fillStyle = skinColor;
+    ctx.fill();
+    
+    // 수영모 모자 (장착 여부에 따라 렌더링)
+    ctx.beginPath();
+    ctx.arc(0, -48, 16, Math.PI, 0); // 머리 반만 덮음
+    let capColor = (gender === 'boy') ? '#1e272e' : '#fbc02d';
+    if (player.equippedGear.includes("cap")) capColor = '#e74c3c';
+    ctx.fillStyle = capColor;
+    ctx.fill();
+    
+    // 물안경 밴드 그리기 (장비 장착 시)
+    if (player.equippedGear.includes("goggles")) {
+        ctx.fillStyle = "#00bcd4";
+        ctx.fillRect(-10, -48, 20, 6);
+        ctx.strokeStyle = "#ffffff";
+        ctx.strokeRect(-10, -48, 20, 6);
+    }
+    
+    // 골드 챔피언 오라 후광 (최종 Lv.10 전설 챔피언 전용 데코)
+    if (lv >= 10) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#ffeb3b";
+        ctx.strokeStyle = "#ffeb3b";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-25, -65, 50, 110);
+    }
+    
+    ctx.restore();
+}
+
+function drawSwimmingRace() {
+    const details = stageDetails[currentRaceStage];
+    
+    // 1. 무한 스크롤 타일형 맵 배경 렌더링
+    let bgImg = images.bg_water;
+    if (details.bg === "bg_valley") bgImg = images.bg_valley;
+    if (details.bg === "bg_ocean") bgImg = images.bg_ocean;
+    
+    if (isAssetsLoaded && bgImg && bgImg.complete && bgImg.naturalHeight > 0) {
+        // 캔버스 세로방향으로 스크롤 타일링 2회 중첩
+        ctx.drawImage(bgImg, 0, raceState.backgroundScrollY - canvas.height, canvas.width, canvas.height);
+        ctx.drawImage(bgImg, 0, raceState.backgroundScrollY, canvas.width, canvas.height);
+    } else {
+        ctx.fillStyle = "#2980b9";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // 레인 구분선 렌더링 (실내 수영장용)
+    if (details.bg === "bg_water") {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 4;
+        ctx.setLineDash([15, 15]);
+        for (let i = 1; i < details.lanes; i++) {
+            ctx.beginPath();
+            ctx.moveTo((canvas.width / details.lanes) * i, 0);
+            ctx.lineTo((canvas.width / details.lanes) * i, canvas.height);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+    }
+    
+    // 2. 장애물 렌더링
+    raceState.obstacles.forEach(obs => {
+        let obsImg = images[obs.symbol];
+        if (isAssetsLoaded && obsImg && obsImg.complete && obsImg.naturalHeight > 0) {
+            ctx.drawImage(obsImg, obs.x - obs.size, obs.y - obs.size, obs.size * 2, obs.size * 2);
+        } else {
+            // 폴백 그리기
+            ctx.fillStyle = "#e67e22";
+            ctx.beginPath();
+            ctx.arc(obs.x, obs.y, obs.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+    
+    // 선물 상자 렌더링
+    raceState.gifts.forEach(gift => {
+        ctx.fillStyle = "#f1c40f";
+        ctx.fillRect(gift.x - gift.size, gift.y - gift.size, gift.size * 2, gift.size * 2);
+        ctx.strokeStyle = "#ffffff";
+        ctx.strokeRect(gift.x - gift.size, gift.y - gift.size, gift.size * 2, gift.size * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "12px Arial";
+        ctx.fillText("🎁", gift.x, gift.y + 4);
+    });
+    
+    // 3. NPC 렌더링 (이름표 동시 출력)
+    raceState.competitors.forEach(npc => {
+        drawHuman(ctx, npc.x, npc.y, 'boy', 4, 'up', Date.now() + npc.baseSpeed * 100);
+        
+        // NPC 이름 태그
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(npc.x - 25, npc.y + 35, 50, 16);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(npc.name, npc.x, npc.y + 47);
+    });
+    
+    // 4. 플레이어 캐릭터 그리기
+    let shouldDraw = true;
+    if (isInvulnerable && Math.floor(invulnerableTimer / 5) % 2 === 0) {
+        shouldDraw = false;
+    }
+    if (shouldDraw) {
+        drawHuman(ctx, raceState.playerX, raceState.playerY, player.gender, player.level, 'up', Date.now());
+        
+        // 플레이어 내이름 태그
+        ctx.fillStyle = "rgba(46, 204, 113, 0.8)";
+        ctx.fillRect(raceState.playerX - 25, raceState.playerY + 35, 50, 16);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 10px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("나", raceState.playerX, raceState.playerY + 47);
+    }
+    
+    // 5. 실시간 정보 헤더 레이아웃
+    ctx.fillStyle = "rgba(13, 17, 23, 0.85)";
+    ctx.fillRect(0, 0, canvas.width, 100);
+    
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("🏁 Stage " + (currentRaceStage) + ": " + (details.name), 15, 30);
+    
+    // 스퍼트 번호
+    ctx.fillStyle = "#ffeb3b";
+    ctx.fillText("⚡ 스퍼트 가속 (Space): " + (raceState.spurtCharges) + "회", 15, 55);
+    
+    // 거리 완주 진행률
+    const progress = Math.min(1.0, raceState.distance / raceState.targetDistance);
+    ctx.fillStyle = "#34495e";
+    ctx.fillRect(15, 70, canvas.width - 30, 15);
+    ctx.fillStyle = "#2ecc71";
+    ctx.fillRect(15, 70, (canvas.width - 30) * progress, 15);
+    
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("완주 거리 진행률: " + (Math.floor(progress * 100)) + "%", canvas.width / 2, 82);
+    
+    // 6. 경기 종료 결과창 디스플레이
+    if (raceState.raceResults) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px Arial";
+        ctx.fillText("🏁 경기 종료!", canvas.width / 2, 300);
+        
+        let medal = "참가상 🥉";
+        if (raceState.raceResults.rank === 1) medal = "우승 금메달 🥇";
+        else if (raceState.raceResults.rank === 2) medal = "준우승 은메달 🥈";
+        else if (raceState.raceResults.rank === 3) medal = "은메달 🥉";
+        
+        ctx.font = "bold 20px Arial";
+        ctx.fillStyle = "#ffeb3b";
+        ctx.fillText("최종 등수: " + (raceState.raceResults.rank) + "등 (" + (medal) + ")", canvas.width / 2, 360);
+        ctx.fillText("보상: +" + (raceState.raceResults.prize) + " 코인", canvas.width / 2, 400);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "14px Arial";
+        if (raceState.raceResults.rank === 1) {
+            ctx.fillText("축하합니다! 다음 단계 대회 해금 완료!", canvas.width / 2, 450);
+        } else {
+            ctx.fillText("다시 도전해 보세요! 훈련으로 몸을 더 키우면 1등 할 수 있어요!", canvas.width / 2, 450);
+        }
+        
+        // 터치하여 나가기 가속 안내
+        ctx.font = "bold 16px Arial";
+        ctx.fillStyle = "#4caf50";
+        ctx.fillText("👉 화면을 터치하면 로비로 복귀합니다", canvas.width / 2, 540);
+    }
+}
+
+// 레이스 결과창 탭 감지하여 나가기 처리
+canvas.addEventListener('click', () => {
+    if (gameState === 'SWIMMING_RACE' && raceState.raceResults) {
+        gameState = 'HUB_LOBBY';
+        hideAllUIs();
+        hubUi.style.display = 'flex';
+        updateLobbyUI();
+    }
+});
+
+
+// ==========================================
+// --- 메인 애니메이션 루프 및 조작 입력 ---
+// ==========================================
+
+function update() {
+    if (gameState === 'SWIMMING_RACE') {
+        updateRaceLogic();
+    }
+}
+
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 1. 상태창 그리기 (450px 컴팩트 세로 모바일 헤더)
-    if (gameState !== 'START_MENU') {
-        ctx.fillStyle = "#1b2530"; 
-        ctx.fillRect(0, 0, canvas.width, 100);
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(0, 100);
-        ctx.lineTo(canvas.width, 100);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "left";
-        
-        // 체력바 (폭을 150px로 콤팩트화)
-        ctx.font = "bold 16px Arial";
-        ctx.fillText("❤️ 체력:", 15, 34);
-        
-        ctx.fillStyle = "#555555";
-        ctx.fillRect(75, 18, 150, 22);
-        
-        if (playerEnergy > 50) ctx.fillStyle = "#2ecc71";
-        else if (playerEnergy > 20) ctx.fillStyle = "#f39c12";
-        else ctx.fillStyle = "#e74c3c";
-        ctx.fillRect(75, 18, Math.max(0, playerEnergy) * 1.5, 22);
-        
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 12px Arial";
-        ctx.fillText(Math.floor(playerEnergy) + " / 100", 125, 33);
-
-        // 코인 (오른쪽 배치)
-        ctx.font = "bold 16px Arial";
-        ctx.fillText("💰 코인: " + playerCoins, 255, 34);
-        
-        // 보유 장비 2행 배치
-        ctx.fillText("장비:", 15, 74);
-        
-        // 오리발 뱃지
-        if (hasFins) {
-            ctx.fillStyle = "#e8f5e9";
-            ctx.fillRect(65, 57, 75, 25);
-            ctx.strokeStyle = "#4caf50";
-            ctx.strokeRect(65, 57, 75, 25);
-            ctx.fillStyle = "#1b5e20";
-            ctx.font = "bold 12px Arial";
-            ctx.fillText("🦶 오리발", 72, 74);
-        } else {
-            ctx.fillStyle = "#333333";
-            ctx.fillRect(65, 57, 75, 25);
-            ctx.strokeStyle = "#555555";
-            ctx.strokeRect(65, 57, 75, 25);
-            ctx.fillStyle = "#888888";
-            ctx.font = "12px Arial";
-            ctx.fillText("🦶 없음", 78, 74);
-        }
-
-        // 물안경 뱃지
-        if (hasGoggles) {
-            ctx.fillStyle = "#e3f2fd";
-            ctx.fillRect(150, 57, 75, 25);
-            ctx.strokeStyle = "#2196f3";
-            ctx.strokeRect(150, 57, 75, 25);
-            ctx.fillStyle = "#0d47a1";
-            ctx.font = "bold 12px Arial";
-            ctx.fillText("🦪 물안경", 157, 74);
-        } else {
-            ctx.fillStyle = "#333333";
-            ctx.fillRect(150, 57, 75, 25);
-            ctx.strokeStyle = "#555555";
-            ctx.strokeRect(150, 57, 75, 25);
-            ctx.fillStyle = "#888888";
-            ctx.font = "12px Arial";
-            ctx.fillText("🦪 없음", 163, 74);
-        }
-    }
-
-    if (gameState === 'HUB_MENU' || gameState === 'DIFFICULTY_SELECTION' || gameState === 'SHOP_MENU') {
-        if (isAssetsLoaded && images.bgGym && images.bgGym.complete && images.bgGym.naturalHeight > 0) {
-            ctx.drawImage(images.bgGym, 0, 100, canvas.width, canvas.height - 100);
-            ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
+    if (gameState === 'GYM_TRAINING') {
+        drawGymTraining();
+    } else if (gameState === 'SWIMMING_RACE') {
+        drawSwimmingRace();
+    } else {
+        // UI 로비 대시보드 뒷배경
+        if (images.bg_gym && images.bg_gym.complete && images.bg_gym.naturalHeight > 0) {
+            ctx.drawImage(images.bg_gym, 0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         } else {
             ctx.fillStyle = "#1b2530";
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-    } 
-    else if (gameState === 'GYM_MENU') {
-        if (isAssetsLoaded && images.bgGym && images.bgGym.complete && images.bgGym.naturalHeight > 0) {
-            ctx.drawImage(images.bgGym, 0, 100, canvas.width, canvas.height - 100);
-        } else {
-            ctx.fillStyle = "#FFF8DC"; 
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
-        }
-    } 
-    else if (gameState === 'TRAIN_MOUSE') {
-        if (isAssetsLoaded && images.bgGym && images.bgGym.complete && images.bgGym.naturalHeight > 0) {
-            ctx.drawImage(images.bgGym, 0, 100, canvas.width, canvas.height - 100);
-            ctx.fillStyle = "rgba(224, 255, 255, 0.4)";
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
-        } else {
-            ctx.fillStyle = "#E0FFFF"; 
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
-        }
-
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-        ctx.font = "bold 15px Arial";
-        ctx.textBaseline = "middle";
-        ctx.shadowColor = "black";
-        ctx.shadowBlur = 4;
-        ctx.fillText("🎈 나타나는 물방울을 터트려봐요! (나가기: ESC)", canvas.width / 2, 130);
-        ctx.shadowBlur = 0; 
-
-        if (targetBubble.active) {
-            ctx.beginPath();
-            ctx.arc(targetBubble.x, targetBubble.y, targetBubble.radius, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(135, 206, 235, 0.85)";
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = "blue";
-            ctx.stroke();
-            
-            ctx.fillStyle = "black";
-            ctx.font = "20px Arial";
-            ctx.fillText("💦", targetBubble.x, targetBubble.y + 7);
-        }
-    }
-    else if (gameState === 'TRAIN_KEYBOARD') {
-        if (isAssetsLoaded && images.bgGym && images.bgGym.complete && images.bgGym.naturalHeight > 0) {
-            ctx.drawImage(images.bgGym, 0, 100, canvas.width, canvas.height - 100);
-            ctx.fillStyle = "rgba(255, 240, 245, 0.4)";
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
-        } else {
-            ctx.fillStyle = "#FFF0F5"; 
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
-        }
-
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-        ctx.font = "bold 15px Arial";
-        ctx.shadowColor = "black";
-        ctx.shadowBlur = 4;
-        ctx.fillText("⌨️ 화면에 나오는 알파벳을 찾아 눌러요! (나가기: ESC)", canvas.width / 2, 130);
-        ctx.shadowBlur = 0;
-
-        ctx.fillStyle = "#ff5722";
-        ctx.font = "bold 130px Arial";
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 6;
-        ctx.strokeText(targetKey, canvas.width / 2, canvas.height / 2 + 50);
-        ctx.fillText(targetKey, canvas.width / 2, canvas.height / 2 + 50);
-    }
-    else if (gameState === 'SWIMMING_POOL') {
-        // 1. 수영장 위에서 아래로(Y방향) 종스크롤 물 배경 (난이도별 다르게 드로잉)
-        let bgImgKey = 'bgWater';
-        if (currentDifficulty === 'normal') bgImgKey = 'bgValley';
-        else if (currentDifficulty === 'hard') bgImgKey = 'bgOcean';
         
-        const bgImg = images[bgImgKey];
-        if (isAssetsLoaded && bgImg && bgImg.complete && bgImg.naturalHeight > 0) {
-            const startY = laneOffset % bgImg.height;
-            for (let y = startY - bgImg.height; y < canvas.height + bgImg.height; y += bgImg.height) {
-                ctx.drawImage(bgImg, 0, y, canvas.width, bgImg.height);
-            }
-        } else {
-            // 대체 색상 배경 (이미지 로드 전 폴백)
-            if (currentDifficulty === 'easy') ctx.fillStyle = "#00b0ff"; // 푸른 수영장
-            else if (currentDifficulty === 'normal') ctx.fillStyle = "#26a69a"; // 계곡 민트색
-            else ctx.fillStyle = "#0d47a1"; // 깊은 바다 파란색
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
-            
-            // 대체 세로 레인 구분선
-            ctx.strokeStyle = "rgba(255,255,255,0.4)";
-            ctx.lineWidth = 4;
-            ctx.setLineDash([20, 20]);
-            const laneWidths = [150, 300];
-            laneWidths.forEach(w => {
-                ctx.beginPath();
-                ctx.moveTo(w, laneOffset % 100);
-                ctx.lineTo(w, canvas.height + 100);
-                ctx.stroke();
-            });
-            ctx.setLineDash([]);
+        // 로비에 실시간 캐릭터 피지컬 변화 애니메이션 렌더링!
+        if (gameState === 'HUB_LOBBY') {
+            // 화면 하단 중앙 부분에 스탠딩 캐릭터 그리기
+            drawHuman(ctx, canvas.width / 2, 450, player.gender, player.level, 'down', Date.now());
         }
-
-        // 2. 장애물 하강 렌더링
-        obstacles.forEach(obs => {
-            const imgKey = obstacleImageMap[obs.symbol];
-            const obsImg = images[imgKey];
-            if (isAssetsLoaded && obsImg && obsImg.complete && obsImg.naturalHeight > 0) {
-                ctx.drawImage(obsImg, obs.x - obs.size, obs.y - obs.size, obs.size * 2, obs.size * 2);
-            } else {
-                ctx.font = (obs.size * 1.2) + "px Arial";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(obs.symbol, obs.x, obs.y);
-            }
-        });
-
-        // 3. 플레이어 캐릭터 연출 (세로 종스크롤 맞춤형: 엉덩이 흔들기 & 좌우 수영 프레임 교차)
-        let shouldDrawPlayer = true;
-        if (isInvulnerable && Math.floor(invulnerableTimer / 5) % 2 === 0) {
-            shouldDrawPlayer = false;
-        }
-
-        if (shouldDrawPlayer && playerCharacter) {
-            let drawnFromImage = false;
-            const charInfo = characters[playerCharacter];
-            if (charInfo) {
-                // 현재 이동 방향에 해당하는 3D Voxel 이미지 키 선택
-                const imgKey = "char_" + charInfo.prefix + "_" + playerDir;
-                const pImg = images[imgKey];
-                
-                if (isAssetsLoaded && pImg && pImg.complete && pImg.naturalHeight > 0) {
-                    // 수영 모션 생동감을 위한 물리 효과 (Hip Sway & Bob)
-                    const swimSway = Math.sin(Date.now() / 150) * 0.07; // 좌우 실룩임
-                    const swimBobY = Math.sin(Date.now() / 100) * 2;    // 상하 출렁임
-                    
-                    // 각 방향별 스프라이트 크기 보정 (좌우는 가로가 더 길고, 상하는 세로가 더 김)
-                    let pWidth = 55;
-                    let pHeight = 80;
-                    if (playerDir === 'left' || playerDir === 'right') {
-                        pWidth = 80;
-                        pHeight = 55;
-                    }
-                    
-                    ctx.save();
-                    ctx.translate(playerX, playerY + swimBobY);
-                    ctx.rotate(swimSway);
-                    
-                    ctx.drawImage(pImg, -pWidth / 2, -pHeight / 2, pWidth, pHeight);
-                    ctx.restore();
-                    drawnFromImage = true;
-                }
-            }
-
-            if (!drawnFromImage) {
-                ctx.font = "50px Arial";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(playerCharacter, playerX, playerY);
-            }
-        }
-
-        // 4. 모바일형 가로 컴팩트 진행률 안내 바 (상단에 미니 사이즈로 노출)
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillRect(80, 110, 290, 12);
-        ctx.strokeStyle = "#ffffff";
+    }
+    
+    // 전역 피드백 알림 메세지 드로잉
+    if (feedbackTimer > 0) {
+        feedbackTimer--;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(30, 20, canvas.width - 60, 40);
+        ctx.strokeStyle = "#4caf50";
         ctx.lineWidth = 2;
-        ctx.strokeRect(80, 110, 290, 12);
-
-        const progressPercent = Math.min(1.0, swimDistance / targetDistance);
-        ctx.fillStyle = "#ffeb3b";
-        ctx.fillRect(81, 111, progressPercent * 288, 10);
-
+        ctx.strokeRect(30, 20, canvas.width - 60, 40);
+        
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 11px Arial";
+        ctx.font = "bold 13px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("🚩", 60, 121);
-        ctx.fillText("🏆", 390, 121);
-
-        // 진행바 미니 플레이어 표시
-        ctx.font = "14px Arial";
-        ctx.fillText(playerCharacter, 80 + progressPercent * 280, 103);
-
-        // 5. 완주 / 실패 결과 오버레이 연출
-        if (showSwimResult) {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-            ctx.fillRect(0, 100, canvas.width, canvas.height - 100);
-
-            ctx.fillStyle = "#ffffff";
-            ctx.textAlign = "center";
-            ctx.font = "bold 22px Arial";
-            ctx.textBaseline = "middle";
-            ctx.shadowColor = "black";
-            ctx.shadowBlur = 4;
-            ctx.fillText(swimResultMsg, canvas.width / 2, canvas.height / 2 - 20);
-            
-            ctx.font = "15px Arial";
-            ctx.fillStyle = "#cccccc";
-            ctx.fillText("잠시 후 로비로 이동합니다...", canvas.width / 2, canvas.height / 2 + 30);
-            ctx.shadowBlur = 0;
-        }
+        ctx.fillText(showFeedbackMessage, canvas.width / 2, 45);
     }
 }
 
@@ -959,5 +1875,183 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 시작
+// --- 마우스 & 터치 이벤트 통합 매핑 (체육관 드래그 & 클릭 대응) ---
+canvas.addEventListener('click', (e) => {
+    if (gameState !== 'GYM_TRAINING') return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleGymTouchOrClick(x, y);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (gameState !== 'GYM_TRAINING') return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleGymDrag(x, y);
+});
+
+canvas.addEventListener('mouseup', () => {
+    if (gameState === 'GYM_TRAINING') {
+        handleGymDragEnd();
+    }
+});
+
+// 모바일 터치 대응
+canvas.addEventListener('touchstart', (e) => {
+    if (gameState !== 'GYM_TRAINING') return;
+    if (e.touches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const y = e.touches[0].clientY - rect.top;
+        handleGymTouchOrClick(x, y);
+    }
+    // 스크롤 등 기본동작 차단
+    e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    if (gameState !== 'GYM_TRAINING') return;
+    if (e.touches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const y = e.touches[0].clientY - rect.top;
+        handleGymDrag(x, y);
+    }
+    e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+    if (gameState === 'GYM_TRAINING') {
+        handleGymDragEnd();
+    }
+});
+
+
+// ==========================================
+// --- 모바일 가상 키패드 타이핑 리스너 ---
+// ==========================================
+
+const keysList = document.querySelectorAll('.key-btn');
+keysList.forEach(keyBtn => {
+    keyBtn.addEventListener('click', (e) => {
+        const pressedKey = e.target.innerText.trim();
+        
+        if (pressedKey === 'ESC') {
+            // 체육관 메뉴로 나가기
+            gameState = 'GYM_SELECTION';
+            hideAllUIs();
+            gymUi.style.display = 'flex';
+            keyboardPad.style.display = 'none';
+            updateLobbyUI();
+            return;
+        }
+        
+        // 훈련 타이핑 처리
+        handleVirtualKeyPress(pressedKey);
+    });
+});
+
+// 가상 키보드 입력 핸들러
+function handleVirtualKeyPress(key) {
+    if (gameState !== 'GYM_TRAINING') return;
+    
+    if (currentGymGame === 'STRETCH') {
+        if (key.toUpperCase() === gymState.inputPrompt) {
+            gymState.score++;
+            triggerFeedback("🧘 완벽한 자세!");
+            if (gymState.score >= gymState.targetCount) {
+                finishGymTraining(true);
+            } else {
+                spawnStretchKey();
+            }
+        }
+    } else if (currentGymGame === 'ROPE') {
+        const targetWord = gymState.inputPrompt;
+        const nextCharExpected = targetWord.charAt(gymState.inputText.length);
+        
+        if (key.toUpperCase() === nextCharExpected) {
+            gymState.inputText += key.toUpperCase();
+            if (gymState.inputText === targetWord) {
+                gymState.score++;
+                triggerFeedback("🪢 줄넘기 연속 홉!");
+                if (gymState.score >= gymState.targetCount) {
+                    finishGymTraining(true);
+                } else {
+                    spawnRopeWord();
+                }
+            }
+        }
+    } else if (currentGymGame === 'FORM') {
+        const targetSentence = gymState.inputPrompt;
+        const nextCharExpected = targetSentence.charAt(gymState.inputText.length);
+        
+        // 모바일 스크린 가상키보드에는 띄어쓰기 처리를 위해 특수 입력 또는 그냥 자동 스킵 처리 지원 가능
+        // 훈련 문장의 공백 문자 처리 (만약 다음 문자가 공백이면 자동 스킵 처리하여 가독성 높임)
+        if (nextCharExpected === ' ') {
+            gymState.inputText += ' ';
+        }
+        
+        const nextCharExpectedAfterSpace = targetSentence.charAt(gymState.inputText.length);
+        if (key.toUpperCase() === nextCharExpectedAfterSpace) {
+            gymState.inputText += key.toUpperCase();
+            if (gymState.inputText === targetSentence) {
+                gymState.score++;
+                triggerFeedback("🏊 좋은 수영 폼 연습 완료!");
+                if (gymState.score >= gymState.targetCount) {
+                    finishGymTraining(true);
+                } else {
+                    spawnFormSentence();
+                }
+            }
+        }
+    }
+}
+
+// 실제 하드웨어 키보드 입력 매핑 지원
+window.addEventListener('keydown', (e) => {
+    if (gameState !== 'GYM_TRAINING') return;
+    
+    // ESC 키 대응
+    if (e.key === 'Escape') {
+        gameState = 'GYM_SELECTION';
+        hideAllUIs();
+        gymUi.style.display = 'flex';
+        keyboardPad.style.display = 'none';
+        updateLobbyUI();
+        return;
+    }
+    
+    const key = e.key.toUpperCase();
+    
+    // 띄어쓰기 공백 입력 수영 폼 대응
+    if (e.code === 'Space') {
+        handleVirtualKeyPress(' ');
+        return;
+    }
+    
+    if (alphabetKeys.includes(key)) {
+        handleVirtualKeyPress(key);
+    }
+});
+
+
+// ==========================================
+// --- 반응속도 및 미니게임 루프 추가 스케줄러 ---
+// ==========================================
+
+setInterval(() => {
+    if (gameState === 'GYM_TRAINING' && currentGymGame === 'REACTION') {
+        const rx = gymState.elements;
+        if (rx.status === 'RED' && Date.now() >= rx.nextChange) {
+            rx.status = 'GREEN';
+            rx.startTime = Date.now();
+        }
+    }
+}, 50);
+
+
+// --- 초기화 시동 ---
+initPlayerData();
 gameLoop();

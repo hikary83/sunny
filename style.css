@@ -1,289 +1,568 @@
+/* 🏊‍♂️ 수영 챔피언: 성장형 스포츠 게임 - CSS 스타일 */
+
+@import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+
 body {
     margin: 0;
     padding: 0;
+    background-color: #1b2530;
+    color: #ffffff;
+    font-family: 'Noto Sans KR', sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    background-color: #333333;
-    font-family: 'Arial', sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 #game-container {
     position: relative;
-    text-align: center;
+    width: 450px;
+    height: 800px;
+    background-color: #0d1117;
+    border: 6px solid #2f363d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
+/* 도화지(캔버스) 설정 */
 canvas {
-    background-color: #87CEEB;
-    border: 4px solid #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.8);
     display: block;
+    width: 100%;
+    height: 100%;
+    background-color: #2b3e50;
+    z-index: 1;
 }
 
-/* UI 레이어 및 공통 Overlay UI (로블록스 스타일) */
-#ui-layer, .overlay-ui {
+/* 공통 오버레이 UI 스타일 */
+.overlay-ui {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(27, 37, 48, 0.92); /* 로블록스 특유의 짙은 반투명 청회색 */
-    border: 4px solid #ffffff; /* 흰색 두꺼운 테두리 */
-    border-radius: 8px; /* 블록 느낌을 위해 모서리를 각지게 설정 */
+    background-color: rgba(21, 32, 43, 0.95);
+    z-index: 5;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    z-index: 10;
-    padding: 20px;
+    padding: 30px 20px;
     box-sizing: border-box;
+    overflow-y: auto;
 }
 
-#ui-layer h2, .overlay-ui h2 {
-    font-size: 40px;
-    margin: 0 0 10px 0;
-    color: #ffffff;
-    font-weight: 900;
-    text-shadow: 3px 3px 0px #000000; /* 검정색 두꺼운 텍스트 그림자 */
-    letter-spacing: -1px;
+/* 제목 및 설명 텍스트 */
+h2 {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 28px;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    color: #ffeb3b;
+    text-shadow: 2px 2px 0px #000000;
+    text-align: center;
 }
 
 .ui-desc {
-    font-size: 18px;
-    color: #aaaaaa;
-    margin: 0 0 25px 0;
-    font-weight: bold;
-    text-shadow: 1px 1px 1px #000000;
-}
-
-.character-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
+    font-size: 13px;
+    color: #b0bec5;
     margin-bottom: 20px;
+    text-align: center;
 }
 
-/* 캐릭터 선택 버튼 */
-.char-btn {
-    padding: 10px;
-    cursor: pointer;
-    background-color: rgba(38, 50, 68, 0.95);
+/* 공통 버튼 디자인 */
+.menu-btn {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 900;
+    font-size: 16px;
+    color: #ffffff;
+    background-color: #2196f3;
     border: 3px solid #ffffff;
-    border-radius: 8px;
-    transition: transform 0.1s, box-shadow 0.1s;
-    box-shadow: 0 6px 0 #1b2530; /* 3D 입체 단추 */
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin-bottom: 12px;
+    width: 90%;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #1565c0;
+    transition: transform 0.05s, box-shadow 0.05s;
+    text-shadow: 1px 1px 0px #000;
+    box-sizing: border-box;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 130px;
-    height: 160px;
-    box-sizing: border-box;
-}
-
-.char-btn:hover {
-    transform: translateY(-4px);
-    background-color: rgba(58, 70, 98, 0.95);
-    border-color: #ffeb3b;
-    box-shadow: 0 10px 0 #1b2530;
-}
-
-.char-btn:active {
-    transform: translateY(4px);
-    box-shadow: 0 2px 0 #1b2530;
-}
-
-.char-select-img {
-    width: 90px;
-    height: 130px;
-    object-fit: contain;
-}
-
-/* 메뉴 및 컨트롤 버튼 (로블록스 스타일) */
-.menu-btn {
-    font-size: 20px;
-    font-weight: 900;
-    padding: 12px 24px;
-    margin-bottom: 15px;
-    width: 320px;
-    cursor: pointer;
-    background-color: #00bcd4; /* 하늘색 */
-    border: 3px solid #ffffff;
-    border-radius: 6px;
-    color: #ffffff;
-    text-shadow: 2px 2px 0px #000000;
-    transition: transform 0.1s, box-shadow 0.1s;
-    box-shadow: 0 5px 0 #00838f;
-    box-sizing: border-box;
-}
-
-.menu-btn:hover {
-    transform: translateY(-2px);
-    background-color: #26c6da;
-    box-shadow: 0 7px 0 #00838f;
 }
 
 .menu-btn:active {
     transform: translateY(4px);
-    box-shadow: 0 2px 0 #00838f;
+    box-shadow: 0 1px 0 #1565c0;
 }
 
-/* 플레이 / 도전 버튼 */
+/* 플레이 버튼 강조 */
 .play-btn {
-    background-color: #4caf50; /* 초록색 */
-    box-shadow: 0 5px 0 #2e7d32;
-}
-.play-btn:hover {
-    background-color: #66bb6a;
-    box-shadow: 0 7px 0 #2e7d32;
-}
-.play-btn:active {
-    box-shadow: 0 2px 0 #2e7d32;
-}
-
-/* 뒤로가기 / 나가기 버튼 */
-.back-btn {
-    background-color: #f44336; /* 빨간색 */
-    box-shadow: 0 5px 0 #c62828;
-    margin-top: 10px;
-}
-.back-btn:hover {
-    background-color: #ef5350;
-    box-shadow: 0 7px 0 #c62828;
-}
-.back-btn:active {
-    box-shadow: 0 2px 0 #c62828;
-}
-
-/* 난이도 선택 버튼 */
-.diff-btn.easy {
     background-color: #4caf50;
     box-shadow: 0 5px 0 #2e7d32;
 }
-.diff-btn.easy:hover { background-color: #66bb6a; box-shadow: 0 7px 0 #2e7d32; }
-.diff-btn.easy:active { box-shadow: 0 2px 0 #2e7d32; }
 
-.diff-btn.normal {
-    background-color: #ff9800; /* 오렌지 */
-    box-shadow: 0 5px 0 #ef6c00;
-}
-.diff-btn.normal:hover { background-color: #ffb74d; box-shadow: 0 7px 0 #ef6c00; }
-.diff-btn.normal:active { box-shadow: 0 2px 0 #ef6c00; }
-
-.diff-btn.hard {
+/* 뒤로가기 버튼 */
+.back-btn {
     background-color: #f44336;
     box-shadow: 0 5px 0 #c62828;
+    margin-top: 15px;
 }
-.diff-btn.hard:hover { background-color: #ef5350; box-shadow: 0 7px 0 #c62828; }
-.diff-btn.hard:active { box-shadow: 0 2px 0 #c62828; }
 
-/* 상점 UI */
-.shop-info {
-    font-size: 22px;
+/* 1. 캐릭터 생성 화면 전용 */
+.gender-selection {
+    display: flex;
+    gap: 15px;
+    width: 90%;
+    margin-bottom: 20px;
+}
+
+.gender-btn {
+    flex: 1;
+    padding: 15px;
+    font-family: 'Noto Sans KR', sans-serif;
     font-weight: 900;
-    margin-bottom: 18px;
-    background-color: #ffeb3b; /* 로블록스 코인 골드 */
-    color: #333333;
-    padding: 8px 24px;
-    border-radius: 6px;
-    border: 3px solid #ffffff;
-    box-shadow: 0 4px 0 #fdd835;
-}
-
-.shop-items {
-    display: flex;
-    flex-direction: column; /* 모바일을 위해 세로 배치 */
-    gap: 12px;
-    margin-bottom: 15px;
-    width: 100%;
-    align-items: center;
-}
-
-.shop-item {
-    background: rgba(38, 50, 68, 0.95);
-    border: 3px solid #ffffff;
-    border-radius: 6px;
-    padding: 10px 15px;
-    width: 350px; /* 세로형으로 넓직하게 배치 */
-    display: flex;
-    flex-direction: row; /* 가로 가로 구조 */
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 5px 0 #1b2530;
+    font-size: 15px;
+    background-color: #37474f;
+    border: 3px solid #546e7a;
+    border-radius: 12px;
     color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #263238;
+}
+
+.gender-btn.active {
+    background-color: #ff9800;
+    border-color: #ffffff;
+    color: #ffffff;
+    box-shadow: 0 4px 0 #e65100;
+    transform: scale(1.03);
+}
+
+.name-selection, .code-login-section {
+    width: 90%;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #b0bec5;
+    margin-bottom: 6px;
+}
+
+#name-select {
+    padding: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    background-color: #263238;
+    border: 3px solid #37474f;
+    border-radius: 8px;
+    color: #ffffff;
+    outline: none;
+}
+
+.code-input-row {
+    display: flex;
+    gap: 10px;
+}
+
+#input-login-code {
+    flex: 1;
+    padding: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    background-color: #263238;
+    border: 3px solid #37474f;
+    border-radius: 8px;
+    color: #ffffff;
+    outline: none;
+    text-transform: uppercase;
+}
+
+#btn-load-code {
+    padding: 10px 15px;
+    font-weight: 900;
+    background-color: #00bcd4;
+    border: 2px solid #ffffff;
+    border-radius: 8px;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #0097a7;
+}
+
+#btn-load-code:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #0097a7;
+}
+
+/* 2. 로비 화면 전용 */
+.lobby-header {
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.lobby-code-badge {
+    background-color: #1a237e;
+    color: #8c9eff;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid #3f51b5;
+    margin-top: 5px;
+}
+
+.char-status-card {
+    width: 90%;
+    background-color: #263238;
+    border: 3px solid #455a64;
+    border-radius: 16px;
+    padding: 15px;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+
+.char-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.char-name {
+    font-size: 20px;
+    font-weight: 900;
+    color: #ffeb3b;
+    text-shadow: 1px 1px 0px #000;
+}
+
+.char-level-tag {
+    background-color: #ff9800;
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 14px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 2px solid #ffffff;
+}
+
+.char-body-desc {
+    font-size: 12px;
+    color: #b0bec5;
+    margin-bottom: 15px;
+}
+
+.stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-bar-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 3px;
+    color: #eceff1;
+}
+
+.stat-progress-bar {
+    width: 100%;
+    height: 12px;
+    background-color: #1c2830;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #37474f;
+}
+
+.stat-progress-fill {
+    height: 100%;
+    background-color: #00e676;
+    border-radius: 6px;
+    transition: width 0.3s;
+}
+
+.currency-card {
+    width: 90%;
+    background-color: #1a252f;
+    border: 2px solid #ffeb3b;
+    border-radius: 12px;
+    padding: 10px 15px;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 900;
+    margin-bottom: 15px;
+    color: #ffeb3b;
+}
+
+.lobby-buttons {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 3. 체육관 훈련 화면 전용 */
+.gym-scroll-container {
+    width: 95%;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding-right: 5px;
+}
+
+/* 스크롤바 디자인 */
+.gym-scroll-container::-webkit-scrollbar, .stages-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+.gym-scroll-container::-webkit-scrollbar-thumb, .stages-scroll-container::-webkit-scrollbar-thumb {
+    background-color: #455a64;
+    border-radius: 4px;
+}
+
+.gym-category {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.category-title {
+    font-size: 14px;
+    font-weight: 900;
+    color: #00bcd4;
+    border-left: 4px solid #00bcd4;
+    padding-left: 8px;
+    margin-bottom: 4px;
+}
+
+.gym-course-btn {
+    font-family: 'Noto Sans KR', sans-serif;
+    background-color: #2c3e50;
+    border: 2px solid #546e7a;
+    border-radius: 10px;
+    padding: 10px 15px;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 4px 0 #1b2835;
+    transition: transform 0.05s, box-shadow 0.05s;
     box-sizing: border-box;
 }
 
-.shop-item:hover {
-    border-color: #ffeb3b;
+.gym-course-btn:active:not(.locked) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #1b2835;
+}
+
+.gym-course-btn.locked {
+    background-color: #37474f;
+    border-color: #263238;
+    color: #90a4ae;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.course-name {
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.course-desc {
+    font-size: 11px;
+    color: #b0bec5;
+}
+
+.gym-course-btn.locked .course-desc {
+    color: #78909c;
+}
+
+/* 4. 대회 선택 화면 전용 */
+.stages-scroll-container {
+    width: 95%;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 5px;
+    margin-bottom: 10px;
+}
+
+.stage-btn {
+    font-family: 'Noto Sans KR', sans-serif;
+    background-color: #1a252f;
+    border: 3px solid #4caf50;
+    border-radius: 12px;
+    padding: 12px 15px;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 0 #111a22;
+}
+
+.stage-btn:active:not(.locked) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #111a22;
+}
+
+.stage-btn.locked {
+    border-color: #546e7a;
+    background-color: #263238;
+    color: #90a4ae;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.stage-info-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stage-title {
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.stage-cond {
+    font-size: 11px;
+    color: #a5d6a7;
+}
+
+.stage-btn.locked .stage-cond {
+    color: #90a4ae;
+}
+
+/* 5. 상점 화면 전용 */
+.shop-tabs {
+    display: flex;
+    gap: 8px;
+    width: 90%;
+    margin-bottom: 15px;
+}
+
+.shop-tab-btn {
+    flex: 1;
+    padding: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 900;
+    font-size: 14px;
+    background-color: #37474f;
+    border: 2px solid #546e7a;
+    border-radius: 8px;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.shop-tab-btn.active {
+    background-color: #00bcd4;
+    border-color: #ffffff;
+    box-shadow: 0 3px 0 #0097a7;
+}
+
+.shop-items-container {
+    width: 95%;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 5px;
+}
+
+.shop-item-card {
+    background-color: #263238;
+    border: 2px solid #455a64;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
 }
 
 .shop-item-img {
     width: 50px;
     height: 50px;
     object-fit: contain;
-}
-
-.shop-item-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex-grow: 1;
-    margin-left: 15px;
-    gap: 2px;
-}
-
-.item-name {
-    font-size: 16px;
-    font-weight: 900;
-    text-shadow: 1px 1px 0px #000;
-    margin: 0;
-}
-
-.item-effect {
-    font-size: 12px;
-    color: #cccccc;
-    text-align: left;
-    text-shadow: 1px 1px 0px #000;
-    margin: 0;
-}
-
-/* 상점 구매 버튼 */
-.buy-btn {
-    font-size: 14px;
-    font-weight: 900;
-    padding: 6px 12px;
-    background-color: #ffeb3b;
-    border: 2px solid #ffffff;
-    border-radius: 6px;
-    cursor: pointer;
-    width: 90px;
-    color: #333333;
-    box-shadow: 0 3px 0 #fdd835;
-    transition: transform 0.05s, box-shadow 0.05s;
+    border-radius: 8px;
+    background-color: #1a252f;
+    padding: 4px;
     box-sizing: border-box;
 }
 
-.buy-btn:hover {
-    background-color: #fff176;
+.shop-item-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
 
-.buy-btn:active {
+.shop-item-name {
+    font-size: 15px;
+    font-weight: 900;
+    color: #ffeb3b;
+}
+
+.shop-item-desc {
+    font-size: 11px;
+    color: #b0bec5;
+}
+
+.shop-item-buy-btn {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 900;
+    font-size: 13px;
+    padding: 8px 12px;
+    background-color: #ffeb3b;
+    border: 2px solid #ffffff;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #263238;
+    box-shadow: 0 3px 0 #fdd835;
+    width: 90px;
+    text-align: center;
+}
+
+.shop-item-buy-btn:active:not(:disabled) {
     transform: translateY(2px);
     box-shadow: 0 1px 0 #fdd835;
 }
 
-.buy-btn:disabled {
+.shop-item-buy-btn:disabled {
     background-color: #555555;
     border-color: #777777;
     color: #999999;
     box-shadow: none;
     cursor: not-allowed;
-    transform: none !important;
 }
 
-/* 모바일 가상 키보드 패드 */
+/* 가상 키보드 패드 */
 #keyboard-pad {
     position: absolute;
     bottom: 25px;
@@ -330,6 +609,3 @@ canvas {
     transform: translateY(3px);
     box-shadow: 0 0px 0 #1b2530;
 }
-
-
-

@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 모바일 웹앱 전체화면 설정 (홈 화면 추가 시 앱처럼 동작) -->
+    <!-- 모바일 웹앱 전체화면 설정 -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>우리의 멋진 게임</title>
+    <title>수영 챔피언: 성장형 스포츠 게임</title>
     <script>
         // 모바일 환경 디버깅을 위한 전역 자바스크립트 에러 감지기
         window.onerror = function(message, source, lineno, colno, error) {
@@ -19,81 +19,250 @@
 </head>
 <body>
     <div id="game-container">
-        <!-- 캐릭터 선택 화면 (HTML UI) -->
-        <div id="ui-layer">
-            <h2>주인공을 선택하세요!</h2>
-            <div class="character-list">
-                <button class="char-btn" data-char="🐶"><img class="char-select-img" src="assets/player_dog_down.png" alt="강아지"></button>
-                <button class="char-btn" data-char="🦖"><img class="char-select-img" src="assets/player_dino_down.png" alt="공룡"></button>
-                <button class="char-btn" data-char="🐧"><img class="char-select-img" src="assets/player_penguin_down.png" alt="펭귄"></button>
-                <button class="char-btn" data-char="👽"><img class="char-select-img" src="assets/player_stitch_down.png" alt="스티치"></button>
+        
+        <!-- 1. 캐릭터 생성 화면 -->
+        <div id="create-char-ui" class="overlay-ui">
+            <h2>🏆 수영 챔피언 되기</h2>
+            <p class="ui-desc">성별과 멋진 별명을 선택해 주세요!</p>
+            
+            <div class="gender-selection">
+                <button class="gender-btn active" id="btn-gender-boy" data-gender="boy">👦 남자아이</button>
+                <button class="gender-btn" id="btn-gender-girl" data-gender="girl">👧 여자아이</button>
+            </div>
+            
+            <div class="name-selection">
+                <label for="name-select" class="form-label">📝 선수 닉네임 선택</label>
+                <select id="name-select">
+                    <option value="마린보이">🐬 마린보이</option>
+                    <option value="인어공주">🧜‍♀️ 인어공주</option>
+                    <option value="물개왕">🦭 물개왕</option>
+                    <option value="아기상어">🦈 아기상어</option>
+                    <option value="펠프스">⚡ 펠프스</option>
+                    <option value="태양의후예">☀️ 태양의후예</option>
+                    <option value="수영천재">🏊‍♂️ 수영천재</option>
+                    <option value="물방울왕자">💧 물방울왕자</option>
+                    <option value="바다거북">🐢 바다거북</option>
+                    <option value="아쿠아맨">🔱 아쿠아맨</option>
+                </select>
+            </div>
+            
+            <div class="code-login-section">
+                <label for="input-login-code" class="form-label">🔑 이어하기 코드 (선택)</label>
+                <div class="code-input-row">
+                    <input type="text" id="input-login-code" placeholder="예: SWIM-A1B2" maxlength="9">
+                    <button id="btn-load-code">연동</button>
+                </div>
+            </div>
+            
+            <button class="menu-btn play-btn" id="btn-start-game" style="margin-top: 20px;">🎮 게임 시작하기</button>
+        </div>
+
+        <!-- 2. 홈 대시보드 로비 화면 -->
+        <div id="hub-ui" class="overlay-ui" style="display: none;">
+            <div class="lobby-header">
+                <h2>🏡 챔피언 트레이닝 캠프</h2>
+                <div class="lobby-code-badge">이어하기 코드: <span id="lobby-code-text">SWIM-0000</span></div>
+            </div>
+            
+            <!-- 캐릭터 상태 카드 -->
+            <div class="char-status-card">
+                <div class="char-info-row">
+                    <span class="char-name" id="display-name">마린보이</span>
+                    <span class="char-level-tag" id="display-level">Lv.1</span>
+                </div>
+                <div class="char-body-desc" id="display-body-desc">빼빼 마른 꿈나무</div>
+                
+                <!-- 4대 능력치 대시보드 -->
+                <div class="stats-container">
+                    <div class="stat-bar-group">
+                        <span class="stat-label">💪 근력 (<span id="val-strength">1</span>)</span>
+                        <div class="stat-progress-bar"><div class="stat-progress-fill" id="fill-strength" style="width: 10%"></div></div>
+                    </div>
+                    <div class="stat-bar-group">
+                        <span class="stat-label">🫀 지구력 (<span id="val-endurance">1</span>)</span>
+                        <div class="stat-progress-bar"><div class="stat-progress-fill" id="fill-endurance" style="width: 10%"></div></div>
+                    </div>
+                    <div class="stat-bar-group">
+                        <span class="stat-label">⚡ 스피드 (<span id="val-speed">1</span>)</span>
+                        <div class="stat-progress-bar"><div class="stat-progress-fill" id="fill-speed" style="width: 10%"></div></div>
+                    </div>
+                    <div class="stat-bar-group">
+                        <span class="stat-label">🧠 집중력 (<span id="val-focus">1</span>)</span>
+                        <div class="stat-progress-bar"><div class="stat-progress-fill" id="fill-focus" style="width: 10%"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 보유 재화 -->
+            <div class="currency-card">
+                <span>💰 보유 코인: <strong id="lobby-coins">0</strong> 코인</span>
+            </div>
+
+            <!-- 대시보드 제어 버튼 -->
+            <div class="lobby-buttons">
+                <button class="menu-btn play-btn" id="btn-go-swim">🏊 수영 대회 출전</button>
+                <button class="menu-btn" id="btn-go-gym">🏋️ 체육관에서 훈련</button>
+                <button class="menu-btn" id="btn-go-shop">🏪 요술 상점 방문</button>
+                <button class="menu-btn back-btn" id="btn-reset-char" style="background-color: #78909c; box-shadow: 0 5px 0 #546e7a;">👤 새 캐릭터 만들기</button>
             </div>
         </div>
 
-        <!-- 훈련 선택 화면 (HTML UI) -->
-        <div id="mission-ui" class="overlay-ui" style="display: none;">
-            <h2>🏋️‍♂️ 체육관 훈련소</h2>
-            <p class="ui-desc">연습을 해서 코인도 벌고 체력도 회복해 보아요!</p>
-            <button class="menu-btn" id="btn-mouse">🖱️ 마우스 클릭 훈련 (1단계)</button>
-            <button class="menu-btn" id="btn-keyboard">⌨️ 키보드 자리 훈련 (1단계)</button>
-            <button class="menu-btn back-btn" id="btn-gym-exit">🚪 체육관 나가기 (로비로 가기)</button>
+        <!-- 3. 체육관 훈련 선택 화면 -->
+        <div id="gym-ui" class="overlay-ui" style="display: none;">
+            <h2>🏋️ 훈련 코스 선택</h2>
+            <p class="ui-desc">레벨이 오르면 더 힘든 코스가 해금됩니다!</p>
+            
+            <div class="gym-scroll-container">
+                <!-- 마우스 훈련 코스 -->
+                <div class="gym-category">
+                    <div class="category-title">🖱️ 마우스 훈련 (터치/드래그)</div>
+                    <button class="gym-course-btn" id="btn-train-boxing" data-req-lv="1">
+                        <div class="course-name">🥊 펀칭 연습 (1단계)</div>
+                        <div class="course-desc">근력·스피드 +1~2 / 레벨 1 해금</div>
+                    </button>
+                    <button class="gym-course-btn locked" id="btn-train-lifting" data-req-lv="3">
+                        <div class="course-name">🏋️ 역기 들기 (2단계) 🔒</div>
+                        <div class="course-desc">근력 +2~3 / 레벨 3 해금</div>
+                    </button>
+                    <button class="gym-course-btn locked" id="btn-train-running" data-req-lv="5">
+                        <div class="course-name">🏃 장애물 달리기 (3단계) 🔒</div>
+                        <div class="course-desc">스피드 +3~5 / 레벨 5 해금</div>
+                    </button>
+                </div>
+                
+                <!-- 키보드 훈련 코스 -->
+                <div class="gym-category">
+                    <div class="category-title">⌨️ 키보드 훈련 (자리/문장)</div>
+                    <button class="gym-course-btn" id="btn-train-stretch" data-req-lv="1">
+                        <div class="course-name">🧘 스트레칭 (1단계)</div>
+                        <div class="course-desc">지구력 +1~2 / 레벨 1 해금</div>
+                    </button>
+                    <button class="gym-course-btn locked" id="btn-train-rope" data-req-lv="3">
+                        <div class="course-name">🪢 줄넘기 (2단계) 🔒</div>
+                        <div class="course-desc">지구력 +2~3 / 레벨 3 해금</div>
+                    </button>
+                    <button class="gym-course-btn locked" id="btn-train-form" data-req-lv="5">
+                        <div class="course-name">🏊 수영폼 연습 (3단계) 🔒</div>
+                        <div class="course-desc">지구력 +3~5 / 레벨 5 해금</div>
+                    </button>
+                </div>
+                
+                <!-- 특수 훈련 코스 -->
+                <div class="gym-category">
+                    <div class="category-title">⚡ 특수 훈련 (집중력/반응속도)</div>
+                    <button class="gym-course-btn" id="btn-train-reaction" data-req-lv="2">
+                        <div class="course-name">🚦 반응속도 연습 🔒</div>
+                        <div class="course-desc">스피드 +2~4 / 레벨 2 해금</div>
+                    </button>
+                    <button class="gym-course-btn" id="btn-train-mash" data-req-lv="2">
+                        <div class="course-name">💥 연타 훈련 🔒</div>
+                        <div class="course-desc">근력 +1~3 / 레벨 2 해금</div>
+                    </button>
+                    <button class="gym-course-btn" id="btn-train-rhythm" data-req-lv="3">
+                        <div class="course-name">🎵 리듬 훈련 🔒</div>
+                        <div class="course-desc">지구력 +2~4 / 레벨 3 해금</div>
+                    </button>
+                    <button class="gym-course-btn" id="btn-train-memory" data-req-lv="3">
+                        <div class="course-name">🧠 기억력 카드 🔒</div>
+                        <div class="course-desc">집중력 +2~4 / 레벨 3 해금</div>
+                    </button>
+                </div>
+            </div>
+            
+            <button class="menu-btn back-btn" id="btn-gym-back">🚪 로비로 돌아가기</button>
         </div>
 
-        <!-- 허브 / 로비 화면 (HTML UI) -->
-        <div id="hub-ui" class="overlay-ui" style="display: none;">
-            <h2>🏡 수영 마스터 로비</h2>
-            <p class="ui-desc">무엇을 하고 싶으신가요?</p>
-            <button class="menu-btn play-btn" id="btn-go-swim">🏊‍♂️ 수영 도전하러 가기</button>
-            <button class="menu-btn" id="btn-go-gym">🏋️‍♂️ 체육관에서 훈련하기 (체력 충전)</button>
-            <button class="menu-btn" id="btn-go-shop">🛒 상점 방문하기</button>
-            <button class="menu-btn back-btn" id="btn-change-char" style="margin-top: 10px;">👤 다른 캐릭터 선택하기</button>
-        </div>
-
-        <!-- 난이도 선택 화면 (HTML UI) -->
+        <!-- 4. 수영 대회 선택 화면 -->
         <div id="difficulty-ui" class="overlay-ui" style="display: none;">
-            <h2>🌊 수영 난이도 선택</h2>
-            <p class="ui-desc">도전할 수영장의 난이도를 골라주세요!</p>
-            <button class="menu-btn diff-btn easy" data-diff="easy">🟢 초급 수영장</button>
-            <button class="menu-btn diff-btn normal" data-diff="normal">🟡 중급 수영장</button>
-            <button class="menu-btn diff-btn hard" data-diff="hard">🔴 고급 수영장</button>
+            <h2>🏊 전국 수영 대회 지도</h2>
+            <p class="ui-desc">1등 우승 시 다음 대회가 해금됩니다!</p>
+            
+            <div class="stages-scroll-container">
+                <button class="stage-btn" id="btn-stage-1" data-req-lv="2">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 1단계: 유치원 수영교실</div>
+                        <div class="stage-cond">참가조건: Lv.2 (실내 얕은 풀)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-2" data-req-lv="3">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 2단계: 동네 수영장 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.3 (실내 25m)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-3" data-req-lv="4">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 3단계: 학교 수영 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.4 (실내 25m)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-4" data-req-lv="5">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 4단계: 구(區) 체육대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.5 (실내 50m)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-5" data-req-lv="6">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 5단계: 호수 수영 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.6 (맑은 호수)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-6" data-req-lv="6">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 6단계: 강변 수영 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.6 (강물살 약함)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-7" data-req-lv="7">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 7단계: 급류 수영 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.7 (강물살 강함)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-8" data-req-lv="8">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 8단계: 해변 수영 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.8 (해변 근해)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-9" data-req-lv="9">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 9단계: 암초 수영 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.9 (암초 지대)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-10" data-req-lv="10">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 10단계: 대양 챔피언십 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.10 (대양 오픈워터)</div>
+                    </div>
+                </button>
+            </div>
+            
             <button class="menu-btn back-btn" id="btn-diff-back">🚪 로비로 돌아가기</button>
         </div>
 
-        <!-- 상점 화면 (HTML UI) -->
+        <!-- 5. 상점 화면 -->
         <div id="shop-ui" class="overlay-ui" style="display: none;">
-            <h2>🛒 요술 상점</h2>
-            <p class="ui-desc">코인으로 유용한 아이템을 살 수 있어요!</p>
-            <div class="shop-info">현재 보유 코인: <span id="shop-coins">0</span>💰</div>
-            <div class="shop-items">
-                <div class="shop-item">
-                    <img class="shop-item-img" src="assets/item_drink.png" alt="체력 드링크">
-                    <div class="shop-item-info">
-                        <span class="item-name">체력 드링크</span>
-                        <span class="item-effect">체력 +50 회복</span>
-                    </div>
-                    <button class="buy-btn" id="buy-drink">💰 10 코인</button>
-                </div>
-                <div class="shop-item">
-                    <img class="shop-item-img" src="assets/item_fins.png" alt="오리발">
-                    <div class="shop-item-info">
-                        <span class="item-name">오리발</span>
-                        <span class="item-effect">수영 이동 속도 상승</span>
-                    </div>
-                    <button class="buy-btn" id="buy-fins">💰 30 코인</button>
-                </div>
-                <div class="shop-item">
-                    <img class="shop-item-img" src="assets/item_goggles.png" alt="물안경">
-                    <div class="shop-item-info">
-                        <span class="item-name">물안경</span>
-                        <span class="item-effect">장애물 피해 50% 감소</span>
-                    </div>
-                    <button class="buy-btn" id="buy-goggles">💰 25 코인</button>
-                </div>
+            <h2>🏪 요술 상점</h2>
+            <div class="shop-info">보유 코인: <span id="shop-coins">0</span>💰</div>
+            
+            <!-- 상점 탭 버튼 -->
+            <div class="shop-tabs">
+                <button class="shop-tab-btn active" id="tab-swimsuit">👕 수영복</button>
+                <button class="shop-tab-btn" id="tab-gear">🥽 장비</button>
+                <button class="shop-tab-btn" id="tab-supplement">🥤 보충제</button>
             </div>
+            
+            <div class="shop-items-container" id="shop-items-list">
+                <!-- 동적으로 아이템들이 렌더링됩니다 -->
+            </div>
+            
             <button class="menu-btn back-btn" id="btn-shop-back" style="margin-top: 15px;">🚪 로비로 돌아가기</button>
         </div>
         
-        <!-- 게임 화면이 그려질 도화지(캔버스)입니다 -->
+        <!-- 게임 화면이 그려질 도화지(캔버스) -->
         <canvas id="gameCanvas" width="450" height="800"></canvas>
 
         <!-- 가상 키보드 패드 (모바일 키보드 훈련용) -->
