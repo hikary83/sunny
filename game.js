@@ -1553,17 +1553,35 @@ canvas.addEventListener('touchend', (e) => {
         const diffX = e.changedTouches[0].clientX - raceDragStartX;
         const details = stageDetails[currentRaceStage];
         
-        if (diffX > 40) {
-            // 우측 스와이프
-            if (raceState.playerLane < details.lanes - 1) {
-                raceState.playerLane++;
-                sfx.playSplash(); // 튐 효과음
+        if (Math.abs(diffX) < 15) {
+            // 스와이프가 아닌 단순 탭 클릭인 경우
+            const clickX = e.changedTouches[0].clientX - canvas.getBoundingClientRect().left;
+            if (clickX < canvas.width / 3) {
+                if (raceState.playerLane > 0) {
+                    raceState.playerLane--;
+                    sfx.playSplash(); // 튐 효과음
+                }
+            } else if (clickX > (canvas.width * 2) / 3) {
+                if (raceState.playerLane < details.lanes - 1) {
+                    raceState.playerLane++;
+                    sfx.playSplash(); // 튐 효과음
+                }
+            } else {
+                // 화면 중앙 탭 시 스퍼트 가속!
+                triggerRaceSpurt();
             }
-        } else if (diffX < -40) {
-            // 좌측 스와이프
-            if (raceState.playerLane > 0) {
-                raceState.playerLane--;
-                sfx.playSplash(); // 튐 효과음
+        } else {
+            // 스와이프를 통한 레인 이동
+            if (diffX > 40) {
+                if (raceState.playerLane < details.lanes - 1) {
+                    raceState.playerLane++;
+                    sfx.playSplash(); // 튐 효과음
+                }
+            } else if (diffX < -40) {
+                if (raceState.playerLane > 0) {
+                    raceState.playerLane--;
+                    sfx.playSplash(); // 튐 효과음
+                }
             }
         }
     }
@@ -1582,18 +1600,7 @@ canvas.addEventListener('mouseup', (e) => {
         const diffX = e.clientX - mouseDragStartX;
         const details = stageDetails[currentRaceStage];
         
-        if (diffX > 40) {
-            if (raceState.playerLane < details.lanes - 1) {
-                raceState.playerLane++;
-                sfx.playSplash();
-            }
-        } else if (diffX < -40) {
-            if (raceState.playerLane > 0) {
-                raceState.playerLane--;
-                sfx.playSplash();
-            }
-        } else {
-            // 화면 좌/우 단순 탭 클릭을 통해서도 레인 이동 가능하도록 지원
+        if (Math.abs(diffX) < 15) {
             const clickX = e.clientX - canvas.getBoundingClientRect().left;
             if (clickX < canvas.width / 3) {
                 if (raceState.playerLane > 0) {
@@ -1603,6 +1610,21 @@ canvas.addEventListener('mouseup', (e) => {
             } else if (clickX > (canvas.width * 2) / 3) {
                 if (raceState.playerLane < details.lanes - 1) {
                     raceState.playerLane++;
+                    sfx.playSplash();
+                }
+            } else {
+                // 화면 중앙 클릭 시 스퍼트 가속!
+                triggerRaceSpurt();
+            }
+        } else {
+            if (diffX > 40) {
+                if (raceState.playerLane < details.lanes - 1) {
+                    raceState.playerLane++;
+                    sfx.playSplash();
+                }
+            } else if (diffX < -40) {
+                if (raceState.playerLane > 0) {
+                    raceState.playerLane--;
                     sfx.playSplash();
                 }
             }
@@ -1860,7 +1882,7 @@ function drawSwimmingRace() {
     
     // 스퍼트 번호
     ctx.fillStyle = "#ffeb3b";
-    ctx.fillText("⚡ 스퍼트 가속 (Space): " + (raceState.spurtCharges) + "회", 15, 55);
+    ctx.fillText("⚡ 스퍼트 가속 (터치/Space): " + (raceState.spurtCharges) + "회", 15, 55);
     
     // 거리 완주 진행률
     const progress = Math.min(1.0, raceState.distance / raceState.targetDistance);
@@ -1873,6 +1895,14 @@ function drawSwimmingRace() {
     ctx.font = "bold 10px Arial";
     ctx.textAlign = "center";
     ctx.fillText("완주 거리 진행률: " + (Math.floor(progress * 100)) + "%", canvas.width / 2, 82);
+
+    // 스퍼트 가이드 안내 문구 (하단 중앙 플로팅)
+    if (!raceState.raceResults && raceState.spurtCharges > 0 && raceState.spurtTimer <= 0) {
+        ctx.fillStyle = "rgba(255, 235, 59, 0.95)";
+        ctx.font = "bold 13px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("⚡ 화면 중앙 터치 또는 Space 키로 스퍼트! ⚡", canvas.width / 2, 720);
+    }
     
     // 6. 경기 종료 결과창 디스플레이
     if (raceState.raceResults) {
