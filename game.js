@@ -39,6 +39,7 @@ const gymUi = document.getElementById('gym-ui');
 const difficultyUi = document.getElementById('difficulty-ui');
 const shopUi = document.getElementById('shop-ui');
 const keyboardPad = document.getElementById('keyboard-pad');
+const btnGymFinishExit = document.getElementById('btn-gym-finish-exit');
 
 // 캐릭터 생성 관련
 const btnGenderBoy = document.getElementById('btn-gender-boy');
@@ -217,6 +218,7 @@ function hideAllUIs() {
     difficultyUi.style.display = 'none';
     shopUi.style.display = 'none';
     keyboardPad.style.display = 'none';
+    btnGymFinishExit.style.display = 'none';
 }
 
 function updateLobbyUI() {
@@ -506,6 +508,12 @@ btnGymBack.addEventListener('click', () => {
     hubUi.style.display = 'flex';
     updateLobbyUI();
 });
+btnGymFinishExit.addEventListener('click', () => {
+    gameState = 'GYM_SELECTION';
+    hideAllUIs();
+    gymUi.style.display = 'flex';
+    updateLobbyUI();
+});
 btnDiffBack.addEventListener('click', () => {
     gameState = 'HUB_LOBBY';
     hideAllUIs();
@@ -727,6 +735,8 @@ function isPointInRunningMaze(x, y) {
 // 훈련 완료 후 스탯 증가 처리
 function finishGymTraining(isSuccess) {
     gymState.gameState = "FINISHED";
+    keyboardPad.style.display = 'none';
+    btnGymFinishExit.style.display = 'flex';
     
     if (isSuccess) {
         // 단백질 보충제 버프 여부 (획득 스탯 2배)

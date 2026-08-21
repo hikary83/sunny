@@ -178,34 +178,34 @@
             <p class="ui-desc">1등 우승 시 다음 대회가 해금됩니다!</p>
             
             <div class="stages-scroll-container">
-                <button class="stage-btn" id="btn-stage-1" data-req-lv="2">
+                <button class="stage-btn" id="btn-stage-1" data-req-lv="1">
                     <div class="stage-info-col">
                         <div class="stage-title">🏆 1단계: 유치원 수영교실</div>
-                        <div class="stage-cond">참가조건: Lv.2 (실내 얕은 풀)</div>
+                        <div class="stage-cond">참가조건: Lv.1 (실내 얕은 풀)</div>
                     </div>
                 </button>
-                <button class="stage-btn locked" id="btn-stage-2" data-req-lv="3">
+                <button class="stage-btn locked" id="btn-stage-2" data-req-lv="2">
                     <div class="stage-info-col">
                         <div class="stage-title">🏆 2단계: 동네 수영장 대회 🔒</div>
+                        <div class="stage-cond">참가조건: Lv.2 (실내 25m)</div>
+                    </div>
+                </button>
+                <button class="stage-btn locked" id="btn-stage-3" data-req-lv="3">
+                    <div class="stage-info-col">
+                        <div class="stage-title">🏆 3단계: 학교 수영 대회 🔒</div>
                         <div class="stage-cond">참가조건: Lv.3 (실내 25m)</div>
                     </div>
                 </button>
-                <button class="stage-btn locked" id="btn-stage-3" data-req-lv="4">
-                    <div class="stage-info-col">
-                        <div class="stage-title">🏆 3단계: 학교 수영 대회 🔒</div>
-                        <div class="stage-cond">참가조건: Lv.4 (실내 25m)</div>
-                    </div>
-                </button>
-                <button class="stage-btn locked" id="btn-stage-4" data-req-lv="5">
+                <button class="stage-btn locked" id="btn-stage-4" data-req-lv="4">
                     <div class="stage-info-col">
                         <div class="stage-title">🏆 4단계: 구(區) 체육대회 🔒</div>
-                        <div class="stage-cond">참가조건: Lv.5 (실내 50m)</div>
+                        <div class="stage-cond">참가조건: Lv.4 (실내 50m)</div>
                     </div>
                 </button>
-                <button class="stage-btn locked" id="btn-stage-5" data-req-lv="6">
+                <button class="stage-btn locked" id="btn-stage-5" data-req-lv="5">
                     <div class="stage-info-col">
                         <div class="stage-title">🏆 5단계: 호수 수영 대회 🔒</div>
-                        <div class="stage-cond">참가조건: Lv.6 (맑은 호수)</div>
+                        <div class="stage-cond">참가조건: Lv.5 (맑은 호수)</div>
                     </div>
                 </button>
                 <button class="stage-btn locked" id="btn-stage-6" data-req-lv="6">
@@ -301,6 +301,9 @@
                 <button class="key-btn">M</button>
             </div>
         </div>
+
+        <!-- 훈련 완료 시 퇴장 버튼 (모바일용) -->
+        <button class="menu-btn back-btn" id="btn-gym-finish-exit" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 10; width: 80%;">🚪 체육관 로비로 가기</button>
     </div>
     
     <!-- 게임의 로직을 담당하는 자바스크립트 파일 연결 -->
