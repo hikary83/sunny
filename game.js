@@ -124,7 +124,8 @@ const imageSources = {
     char_girl_lv3: 'assets/char_girl_lv3.png',
     char_girl_lv5: 'assets/char_girl_lv5.png',
     char_girl_lv7: 'assets/char_girl_lv7.png',
-    char_girl_lv10: 'assets/char_girl_lv10.png'
+    char_girl_lv10: 'assets/char_girl_lv10.png',
+    icon_touch_tap: 'assets/icon_touch_tap.png'
 };
 
 let imagesLoadedCount = 0;
@@ -1898,6 +1899,14 @@ function drawSwimmingRace() {
 
     // 스퍼트 가이드 안내 문구 (하단 중앙 플로팅)
     if (!raceState.raceResults && raceState.spurtCharges > 0 && raceState.spurtTimer <= 0) {
+        // 손가락 터치 제스처 아이콘 드로잉 (바운싱 탭 애니메이션 효과 포함)
+        const tapImg = images.icon_touch_tap;
+        if (isAssetsLoaded && tapImg && tapImg.complete && tapImg.naturalHeight > 0) {
+            const bounceY = Math.sin(Date.now() / 150) * 6; // 통통 튀는 애니메이션
+            const size = 65;
+            ctx.drawImage(tapImg, canvas.width / 2 - size / 2, 630 + bounceY, size, size);
+        }
+        
         ctx.fillStyle = "rgba(255, 235, 59, 0.95)";
         ctx.font = "bold 13px Arial";
         ctx.textAlign = "center";
