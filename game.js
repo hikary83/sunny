@@ -1318,18 +1318,18 @@ let raceState = {
     backgroundScrollY: 0
 };
 
-// 대회 단계별 이름 및 경쟁 난이도 정의
+// 대회 단계별 이름 및 경쟁 난이도 정의 (아이들이 1~3단계에서 재미와 성취감을 느끼도록 난이도 밸런싱)
 const stageDetails = {
-    1: { name: "유치원 수영교실", bg: "bg_water", lanes: 3, npcCount: 3, obstacleRate: 0, npcSpeedMin: 1.5, npcSpeedMax: 2.2 },
-    2: { name: "동네 수영장 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.02, npcSpeedMin: 2.0, npcSpeedMax: 2.7 },
-    3: { name: "학교 수영 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.03, npcSpeedMin: 2.5, npcSpeedMax: 3.2 },
-    4: { name: "구(區) 체육대회", bg: "bg_water", lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 3.0, npcSpeedMax: 3.8 },
-    5: { name: "호수 수영 대회", bg: "bg_lake", lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 3.5, npcSpeedMax: 4.3 },
-    6: { name: "강변 수영 대회", bg: "bg_river", lanes: 4, npcCount: 5, obstacleRate: 0.05, npcSpeedMin: 4.0, npcSpeedMax: 4.8 },
-    7: { name: "급류 수영 대회", bg: "bg_river", lanes: 4, npcCount: 6, obstacleRate: 0.06, npcSpeedMin: 4.5, npcSpeedMax: 5.4 },
-    8: { name: "해변 수영 대회", bg: "bg_beach_ocean", lanes: 4, npcCount: 6, obstacleRate: 0.06, npcSpeedMin: 5.0, npcSpeedMax: 6.0 },
-    9: { name: "암초 수영 대회", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.07, npcSpeedMin: 5.5, npcSpeedMax: 6.6 },
-    10: { name: "대양 챔피언십", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.08, npcSpeedMin: 6.0, npcSpeedMax: 7.2 }
+    1: { name: "유치원 수영교실", bg: "bg_water", lanes: 3, npcCount: 3, obstacleRate: 0, npcSpeedMin: 1.0, npcSpeedMax: 1.6 },
+    2: { name: "동네 수영장 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.015, npcSpeedMin: 1.4, npcSpeedMax: 2.1 },
+    3: { name: "학교 수영 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.025, npcSpeedMin: 1.8, npcSpeedMax: 2.6 },
+    4: { name: "구(區) 체육대회", bg: "bg_water", lanes: 4, npcCount: 5, obstacleRate: 0.035, npcSpeedMin: 2.2, npcSpeedMax: 3.1 },
+    5: { name: "호수 수영 대회", bg: "bg_lake", lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 2.6, npcSpeedMax: 3.6 },
+    6: { name: "강변 수영 대회", bg: "bg_river", lanes: 4, npcCount: 5, obstacleRate: 0.045, npcSpeedMin: 3.0, npcSpeedMax: 4.1 },
+    7: { name: "급류 수영 대회", bg: "bg_river", lanes: 4, npcCount: 6, obstacleRate: 0.05, npcSpeedMin: 3.4, npcSpeedMax: 4.6 },
+    8: { name: "해변 수영 대회", bg: "bg_beach_ocean", lanes: 4, npcCount: 6, obstacleRate: 0.055, npcSpeedMin: 3.8, npcSpeedMax: 5.1 },
+    9: { name: "암초 수영 대회", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.06, npcSpeedMin: 4.2, npcSpeedMax: 5.6 },
+    10: { name: "대양 챔피언십", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.07, npcSpeedMin: 4.6, npcSpeedMax: 6.2 }
 };
 
 const npcNames = ["민우", "서준", "민준", "도윤", "예준", "시우", "하준", "지호", "우진"];
@@ -1346,6 +1346,7 @@ function startSwimmingRace(stageNum) {
     raceState.playerX = getLaneCenterX(1, details.lanes);
     raceState.playerY = 650;
     raceState.playerSpeed = 0;
+    raceState.slowTimer = 0;
     
     // 드링크류 버프 적용 후 스퍼트 충전 횟수 추가
     raceState.spurtCharges = 3 + player.spurtExtraCharge;
@@ -1395,12 +1396,18 @@ function updateRaceLogic() {
     const details = stageDetails[currentRaceStage];
     
     // 1. 플레이어 수영 속도 업데이트 (기본 스탯 비례)
-    // 스피드 1점당 +0.08 속도 증가
-    let targetSpeed = 2.5 + (player.speed * 0.08);
+    // 기본 속도 3.2, 스피드 1점당 +0.12 속도 증가
+    let targetSpeed = 3.2 + (player.speed * 0.12);
     
     // 단백질/에너지 드링크 영구/소모 버프가 있으면 추가 속도 적용
     if (player.energyDrinkBoost > 0) {
         targetSpeed += 0.8;
+    }
+    
+    // 장애물 충돌 감속 타이머 처리 (0.5초간 속도 감속)
+    if (raceState.slowTimer > 0) {
+        targetSpeed *= 0.7; // 30% 감속
+        raceState.slowTimer--;
     }
     
     // 스퍼트 가속 효과
@@ -1467,12 +1474,13 @@ function updateRaceLogic() {
             isInvulnerable = true;
             invulnerableTimer = 60;
             raceState.spurtTimer = 0;
-            raceState.playerSpeed *= 0.3;
+            raceState.slowTimer = 30; // 0.5초(30프레임) 동안 감속
             sfx.playCollision(); // 부딪힘 소리
             
             // 집중력 장착 템이 있으면 부딪혀도 덜 튕김
             if (player.equippedGear.includes("goggles")) {
                 invulnerableTimer = 40;
+                raceState.slowTimer = 15;
             }
             triggerFeedback("💥 장애물 충돌! 속도가 느려집니다!");
         }
