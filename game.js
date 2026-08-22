@@ -1304,7 +1304,7 @@ function handleGymDragEnd() {
 
 let raceState = {
     distance: 0,
-    targetDistance: 1500, // 완주 거리
+    targetDistance: 3500, // 완주 거리 기본값
     playerLane: 1, // 0~3 레인
     playerX: 0,
     playerY: 650,
@@ -1318,18 +1318,18 @@ let raceState = {
     backgroundScrollY: 0
 };
 
-// 대회 단계별 이름 및 경쟁 난이도 정의 (아이들이 1~3단계에서 재미와 성취감을 느끼도록 난이도 밸런싱)
+// 대회 단계별 이름, 완주거리, 경쟁 난이도 정의 (접전의 재미와 적절한 경기 시간을 위한 밸런싱)
 const stageDetails = {
-    1: { name: "유치원 수영교실", bg: "bg_water", lanes: 3, npcCount: 3, obstacleRate: 0, npcSpeedMin: 1.0, npcSpeedMax: 1.6 },
-    2: { name: "동네 수영장 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.015, npcSpeedMin: 1.4, npcSpeedMax: 2.1 },
-    3: { name: "학교 수영 대회", bg: "bg_water", lanes: 3, npcCount: 4, obstacleRate: 0.025, npcSpeedMin: 1.8, npcSpeedMax: 2.6 },
-    4: { name: "구(區) 체육대회", bg: "bg_water", lanes: 4, npcCount: 5, obstacleRate: 0.035, npcSpeedMin: 2.2, npcSpeedMax: 3.1 },
-    5: { name: "호수 수영 대회", bg: "bg_lake", lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 2.6, npcSpeedMax: 3.6 },
-    6: { name: "강변 수영 대회", bg: "bg_river", lanes: 4, npcCount: 5, obstacleRate: 0.045, npcSpeedMin: 3.0, npcSpeedMax: 4.1 },
-    7: { name: "급류 수영 대회", bg: "bg_river", lanes: 4, npcCount: 6, obstacleRate: 0.05, npcSpeedMin: 3.4, npcSpeedMax: 4.6 },
-    8: { name: "해변 수영 대회", bg: "bg_beach_ocean", lanes: 4, npcCount: 6, obstacleRate: 0.055, npcSpeedMin: 3.8, npcSpeedMax: 5.1 },
-    9: { name: "암초 수영 대회", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.06, npcSpeedMin: 4.2, npcSpeedMax: 5.6 },
-    10: { name: "대양 챔피언십", bg: "bg_ocean", lanes: 4, npcCount: 7, obstacleRate: 0.07, npcSpeedMin: 4.6, npcSpeedMax: 6.2 }
+    1: { name: "유치원 수영교실", bg: "bg_water", distance: 3000, lanes: 3, npcCount: 3, obstacleRate: 0, npcSpeedMin: 2.3, npcSpeedMax: 2.8 },
+    2: { name: "동네 수영장 대회", bg: "bg_water", distance: 3200, lanes: 3, npcCount: 4, obstacleRate: 0.015, npcSpeedMin: 2.5, npcSpeedMax: 3.0 },
+    3: { name: "학교 수영 대회", bg: "bg_water", distance: 3500, lanes: 3, npcCount: 4, obstacleRate: 0.025, npcSpeedMin: 2.7, npcSpeedMax: 3.2 },
+    4: { name: "구(區) 체육대회", bg: "bg_water", distance: 3800, lanes: 4, npcCount: 5, obstacleRate: 0.035, npcSpeedMin: 2.9, npcSpeedMax: 3.4 },
+    5: { name: "호수 수영 대회", bg: "bg_lake", distance: 4000, lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 3.1, npcSpeedMax: 3.7 },
+    6: { name: "강변 수영 대회", bg: "bg_river", distance: 4200, lanes: 4, npcCount: 5, obstacleRate: 0.045, npcSpeedMin: 3.3, npcSpeedMax: 4.0 },
+    7: { name: "급류 수영 대회", bg: "bg_river", distance: 4500, lanes: 4, npcCount: 6, obstacleRate: 0.05, npcSpeedMin: 3.6, npcSpeedMax: 4.4 },
+    8: { name: "해변 수영 대회", bg: "bg_beach_ocean", distance: 4800, lanes: 4, npcCount: 6, obstacleRate: 0.055, npcSpeedMin: 3.9, npcSpeedMax: 4.8 },
+    9: { name: "암초 수영 대회", bg: "bg_ocean", distance: 5000, lanes: 4, npcCount: 7, obstacleRate: 0.06, npcSpeedMin: 4.2, npcSpeedMax: 5.2 },
+    10: { name: "대양 챔피언십", bg: "bg_ocean", distance: 5500, lanes: 4, npcCount: 7, obstacleRate: 0.07, npcSpeedMin: 4.5, npcSpeedMax: 5.6 }
 };
 
 const npcNames = ["민우", "서준", "민준", "도윤", "예준", "시우", "하준", "지호", "우진"];
@@ -1342,6 +1342,7 @@ function startSwimmingRace(stageNum) {
     const details = stageDetails[stageNum];
     
     raceState.distance = 0;
+    raceState.targetDistance = details.distance || 3500;
     raceState.playerLane = 1;
     raceState.playerX = getLaneCenterX(1, details.lanes);
     raceState.playerY = 650;
