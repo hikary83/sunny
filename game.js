@@ -1304,10 +1304,11 @@ function handleGymDragEnd() {
 
 let raceState = {
     distance: 0,
-    targetDistance: 1500, // 완주 거리 기본값
+    targetDistance: 2400, // 완주 거리 기본값
     playerLane: 1, // 0~3 레인
     playerX: 0,
-    playerY: 650,
+    playerY: 620,
+    playerTargetY: 620, // 상하 전진/후퇴 보간 목표 Y 좌표
     playerSpeed: 0,
     spurtCharges: 3,
     spurtTimer: 0,
@@ -1323,18 +1324,18 @@ let raceState = {
     backgroundScrollY: 0
 };
 
-// 대회 단계별 이름, 완주거리, 경쟁 난이도 정의 (약 20~25초의 스피디한 경기 시간)
+// 대회 단계별 이름, 완주거리, 경쟁 난이도 정의 (약 35~40초의 충분하고 다채로운 경기 시간)
 const stageDetails = {
-    1: { name: "유치원 수영교실", bg: "bg_water", distance: 1200, lanes: 3, npcCount: 3, obstacleRate: 0, npcSpeedMin: 2.3, npcSpeedMax: 2.8 },
-    2: { name: "동네 수영장 대회", bg: "bg_water", distance: 1300, lanes: 3, npcCount: 4, obstacleRate: 0.015, npcSpeedMin: 2.5, npcSpeedMax: 3.0 },
-    3: { name: "학교 수영 대회", bg: "bg_water", distance: 1400, lanes: 3, npcCount: 4, obstacleRate: 0.025, npcSpeedMin: 2.7, npcSpeedMax: 3.2 },
-    4: { name: "구(區) 체육대회", bg: "bg_water", distance: 1500, lanes: 4, npcCount: 5, obstacleRate: 0.035, npcSpeedMin: 2.9, npcSpeedMax: 3.4 },
-    5: { name: "호수 수영 대회", bg: "bg_lake", distance: 1600, lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 3.1, npcSpeedMax: 3.7 },
-    6: { name: "강변 수영 대회", bg: "bg_river", distance: 1700, lanes: 4, npcCount: 5, obstacleRate: 0.045, npcSpeedMin: 3.3, npcSpeedMax: 4.0 },
-    7: { name: "급류 수영 대회", bg: "bg_river", distance: 1800, lanes: 4, npcCount: 6, obstacleRate: 0.05, npcSpeedMin: 3.6, npcSpeedMax: 4.4 },
-    8: { name: "해변 수영 대회", bg: "bg_beach_ocean", distance: 1900, lanes: 4, npcCount: 6, obstacleRate: 0.055, npcSpeedMin: 3.9, npcSpeedMax: 4.8 },
-    9: { name: "암초 수영 대회", bg: "bg_ocean", distance: 2000, lanes: 4, npcCount: 7, obstacleRate: 0.06, npcSpeedMin: 4.2, npcSpeedMax: 5.2 },
-    10: { name: "대양 챔피언십", bg: "bg_ocean", distance: 2200, lanes: 4, npcCount: 7, obstacleRate: 0.07, npcSpeedMin: 4.5, npcSpeedMax: 5.6 }
+    1: { name: "유치원 수영교실", bg: "bg_water", distance: 2400, lanes: 3, npcCount: 3, obstacleRate: 0, npcSpeedMin: 1.8, npcSpeedMax: 2.2 },
+    2: { name: "동네 수영장 대회", bg: "bg_water", distance: 2600, lanes: 3, npcCount: 4, obstacleRate: 0.012, npcSpeedMin: 2.2, npcSpeedMax: 2.6 },
+    3: { name: "학교 수영 대회", bg: "bg_water", distance: 2800, lanes: 3, npcCount: 4, obstacleRate: 0.02, npcSpeedMin: 2.5, npcSpeedMax: 2.9 },
+    4: { name: "구(區) 체육대회", bg: "bg_water", distance: 3000, lanes: 4, npcCount: 5, obstacleRate: 0.028, npcSpeedMin: 2.8, npcSpeedMax: 3.3 },
+    5: { name: "호수 수영 대회", bg: "bg_lake", distance: 3200, lanes: 4, npcCount: 5, obstacleRate: 0.035, npcSpeedMin: 3.1, npcSpeedMax: 3.6 },
+    6: { name: "강변 수영 대회", bg: "bg_river", distance: 3400, lanes: 4, npcCount: 5, obstacleRate: 0.04, npcSpeedMin: 3.4, npcSpeedMax: 3.9 },
+    7: { name: "급류 수영 대회", bg: "bg_river", distance: 3600, lanes: 4, npcCount: 6, obstacleRate: 0.045, npcSpeedMin: 3.7, npcSpeedMax: 4.3 },
+    8: { name: "해변 수영 대회", bg: "bg_beach_ocean", distance: 3800, lanes: 4, npcCount: 6, obstacleRate: 0.05, npcSpeedMin: 4.0, npcSpeedMax: 4.7 },
+    9: { name: "암초 수영 대회", bg: "bg_ocean", distance: 4000, lanes: 4, npcCount: 7, obstacleRate: 0.055, npcSpeedMin: 4.3, npcSpeedMax: 5.1 },
+    10: { name: "대양 챔피언십", bg: "bg_ocean", distance: 4200, lanes: 4, npcCount: 7, obstacleRate: 0.06, npcSpeedMin: 4.6, npcSpeedMax: 5.5 }
 };
 
 const npcNames = ["민우", "서준", "민준", "도윤", "예준", "시우", "하준", "지호", "우진"];
@@ -1347,16 +1348,22 @@ function startSwimmingRace(stageNum) {
     const details = stageDetails[stageNum];
     
     raceState.distance = 0;
-    raceState.targetDistance = details.distance || 1500;
+    raceState.targetDistance = details.distance || 2400;
     raceState.playerLane = 1;
     raceState.playerX = getLaneCenterX(1, details.lanes);
-    raceState.playerY = 650;
+    raceState.playerY = 620;
+    raceState.playerTargetY = 620;
     raceState.playerSpeed = 0;
     raceState.slowTimer = 0;
     
     // 신규 게임플레이 요소 초기화
     raceState.spurtGauge = 0;
-    raceState.swimStyle = 'freestyle';
+    setSwimStyle('freestyle');
+    
+    // HTML 영법 선택 바 표출
+    const swimBar = document.getElementById('swim-style-bar');
+    if (swimBar) swimBar.style.display = 'flex';
+    
     raceState.rhythmBubble = { active: false, x: 0, y: 0, timer: 0, cooldown: 90 };
     raceState.quickEvent = { active: false, triggered: false, type: 'mash', timer: 0, count: 0, shells: [] };
     raceState.rainbowParticles = [];
@@ -1370,9 +1377,9 @@ function startSwimmingRace(stageNum) {
     raceState.gifts = [];
     raceState.backgroundScrollY = 0;
     raceState.raceResults = null;
-    raceState.playerAnimFrame = 0; // 플레이어 애니메이션 전용 프레임
+    raceState.playerAnimFrame = 0;
     
-    // NPC들 생성 (스타트 라인에 자연스럽게 정렬)
+    // NPC들 생성 (스타트 라인 정렬)
     raceState.competitors = [];
     for (let i = 0; i < details.npcCount; i++) {
         const npcLane = i % details.lanes;
@@ -1383,7 +1390,7 @@ function startSwimmingRace(stageNum) {
             name: name,
             lane: npcLane,
             x: getLaneCenterX(npcLane, details.lanes),
-            y: 650 - (i * 25 - (details.npcCount * 10)), // 초기 스타트라인 정렬
+            y: 620 - (i * 25 - (details.npcCount * 10)), // 초기 스타트라인 정렬
             baseSpeed: baseSpeed,
             currentSpeed: baseSpeed,
             animFrame: 0,
@@ -1427,7 +1434,7 @@ function updateRaceLogic() {
         });
     }
     
-    // 1. 플레이어 수영 속도 업데이트 (기본 스탯 비례 + 영법 보너스)
+    // 1. 플레이어 수영 속도 및 상하(Y축) 위치 전진/후퇴 물리 업데이트
     let targetSpeed = 3.2 + (player.speed * 0.12) + styleSpeedBonus;
     
     // 단백질/에너지 드링크 영구/소모 버프가 있으면 추가 속도 적용
@@ -1435,10 +1442,21 @@ function updateRaceLogic() {
         targetSpeed += 0.8;
     }
     
-    // 장애물 충돌 감속 타이머 처리 (0.5초간 속도 감속)
+    // 장애물 충돌 감속 타이머 처리 (0.5초간 속도 감속 & 아래로 처짐)
     if (raceState.slowTimer > 0) {
         targetSpeed *= 0.7; // 30% 감속
         raceState.slowTimer--;
+        raceState.playerTargetY = 700; // 하향 후퇴
+    } else if (raceState.spurtTimer > 0 || raceState.swimStyle === 'butterfly') {
+        raceState.playerTargetY = 490; // 스퍼트/접영 시 시원한 상향 전진!
+    }
+    
+    // Y축 부드러운 위치 보간
+    raceState.playerY += (raceState.playerTargetY - raceState.playerY) * 0.08;
+    
+    // 전진 위치(Y < 560) 시 추가 속도 보너스 10%
+    if (raceState.playerY < 560) {
+        targetSpeed *= 1.1;
     }
     
     // 스퍼트 가속 효과
@@ -1585,6 +1603,7 @@ function updateRaceLogic() {
             invulnerableTimer = 60;
             raceState.spurtTimer = 0;
             raceState.slowTimer = 30; // 0.5초(30프레임) 동안 감속
+            raceState.playerTargetY = 700; // 충돌 시 뒤로 처짐
             sfx.playCollision(); // 부딪힘 소리
             
             // 집중력 장착 템이 있으면 부딪혀도 덜 튕김
@@ -1612,11 +1631,11 @@ function updateRaceLogic() {
     raceState.obstacles = raceState.obstacles.filter(o => o.y < canvas.height + 50);
     raceState.gifts = raceState.gifts.filter(g => g.y < canvas.height + 50);
     
-    // 5. NPC 움직임 업데이트 (엎치락뒤치락 접전 물리 엔진)
+    // 5. NPC 움직임 업데이트 (정직한 접전 물리 엔진 - 누적 폭발 버그 삭제!)
     const now = Date.now();
     raceState.competitors.forEach((npc, idx) => {
         // 주기적 페이스 변화 (사인파 효과로 엎치락뒤치락 연출)
-        const wave = Math.sin(now * 0.003 + idx * 1.5) * 0.45;
+        const wave = Math.sin(now * 0.003 + idx * 1.5) * 0.4;
         npc.currentSpeed = npc.baseSpeed + wave;
         
         // 플레이어와의 상대 속도 차이에 따라 부드럽게 위치 이동
@@ -1624,23 +1643,19 @@ function updateRaceLogic() {
         npc.y += speedDiff * 0.15;
         npc.animFrame += npc.currentSpeed * 2.0; // 개별 속도 비례 발차기 프레임
         
-        // 화면 시야 범위(160~680) 안에서 자연스러운 접전을 보장하는 가속/감속 탄력 조절
-        if (npc.y < 160) {
-            npc.y = 160;
-            npc.baseSpeed *= 0.98; // 너무 독주하면 체력 소진 감속
-        }
-        if (npc.y > 680) {
-            npc.y = 680;
-            npc.baseSpeed *= 1.02; // 뒤로 쳐지면 추격 스퍼트
-        }
+        // 화면 시야 범위(160~700) 안에서 자연스럽게 가둠 (속도 곱셈 버그 제거!)
+        if (npc.y < 160) npc.y = 160;
+        if (npc.y > 700) npc.y = 700;
     });
     
     // 6. 결승골 검사
     if (raceState.distance >= raceState.targetDistance) {
+        const swimBar = document.getElementById('swim-style-bar');
+        if (swimBar) swimBar.style.display = 'none';
+
         // 순위 결정
         let rank = 1;
         raceState.competitors.forEach(npc => {
-            // NPC의 y좌표가 플레이어보다 위(y값이 더 작음)에 있으면 NPC가 더 앞선 것
             if (npc.y < raceState.playerY) {
                 rank++;
             }
@@ -1666,42 +1681,52 @@ function updateRaceLogic() {
         savePlayerData();
         
         if (rank === 1) {
-            sfx.playVictory(); // 우승 팡파레
+            sfx.playVictory();
         } else {
-            sfx.playFailure(); // 실패 뚱 소리
+            sfx.playFailure();
         }
         
         raceState.raceResults = { rank: rank, prize: prize };
     }
 }
 
+function setSwimStyle(style) {
+    raceState.swimStyle = style;
+    const styleBtns = document.querySelectorAll('.swim-style-btn');
+    styleBtns.forEach(btn => {
+        if (btn.getAttribute('data-style') === style) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+// HTML 영법 스위치 버튼 바 클릭 이벤트 등록
+document.addEventListener('DOMContentLoaded', () => {
+    const styleBtns = document.querySelectorAll('.swim-style-btn');
+    styleBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (gameState !== 'SWIMMING_RACE' || raceState.raceResults) return;
+            const chosen = btn.getAttribute('data-style');
+            if (chosen === 'butterfly' && raceState.spurtGauge <= 0) {
+                triggerFeedback("⚠️ 스퍼트 게이지가 부족합니다!");
+                return;
+            }
+            setSwimStyle(chosen);
+            if (chosen === 'freestyle') triggerFeedback("🏊 자유형 전환! (기본 속도)");
+            else if (chosen === 'butterfly') { sfx.playSpurt(); triggerFeedback("🦋 접영 파워 전환! (속도+1.6 폭발 가속)"); }
+            else if (chosen === 'backstroke') { sfx.playSplash(); triggerFeedback("🏊‍♀️ 배형 전환! (장애물 무적 + 코인 자석)"); }
+        });
+    });
+});
+
 // 통합 레이스 터치/클릭 처리 함수
 function handleRaceClick(clickX, clickY) {
     if (gameState !== 'SWIMMING_RACE' || raceState.raceResults) return;
     
-    // 1. 하단 영법 스위치 바 클릭 감지 (Y >= 660)
-    if (clickY >= 660) {
-        if (clickX < canvas.width / 3) {
-            raceState.swimStyle = 'freestyle';
-            sfx.playSplash();
-            triggerFeedback("🏊 자유형 전환! (기본 속도)");
-        } else if (clickX >= canvas.width / 3 && clickX < (canvas.width * 2) / 3) {
-            if (raceState.spurtGauge > 0) {
-                raceState.swimStyle = 'butterfly';
-                sfx.playSpurt();
-                triggerFeedback("🦋 접영 파워 전환! (속도+1.6 폭발 가속)");
-            } else {
-                triggerFeedback("⚠️ 스퍼트 게이지가 부족합니다!");
-            }
-        } else {
-            raceState.swimStyle = 'backstroke';
-            sfx.playSplash();
-            triggerFeedback("🏊‍♀️ 배형 전환! (장애물 무적 + 코인 자석)");
-        }
-        return;
-    }
-    
-    // 2. 3초 퀵 미니 이벤트 터치 감지
+    // 1. 3초 퀵 미니 이벤트 터치 감지
     if (raceState.quickEvent.active) {
         if (raceState.quickEvent.type === 'mash') {
             raceState.quickEvent.count++;
@@ -1718,7 +1743,7 @@ function handleRaceClick(clickX, clickY) {
         }
     }
     
-    // 3. 리듬 물방울 과녁 터치 감지
+    // 2. 리듬 물방울 과녁 터치 감지
     if (raceState.rhythmBubble.active) {
         const dist = Math.hypot(clickX - raceState.rhythmBubble.x, clickY - raceState.rhythmBubble.y);
         if (dist < 45) {
@@ -1730,7 +1755,7 @@ function handleRaceClick(clickX, clickY) {
         }
     }
     
-    // 4. 일반 좌우 레인 이동 및 스퍼트 가속
+    // 3. 일반 좌우 레인 이동 및 스퍼트 가속
     const details = stageDetails[currentRaceStage];
     if (clickX < canvas.width / 3) {
         if (raceState.playerLane > 0) {
@@ -1749,18 +1774,31 @@ function handleRaceClick(clickX, clickY) {
 
 // 상대방 터치/드래그 방향 전환 감지
 let raceDragStartX = 0;
+let raceDragStartY = 0;
 canvas.addEventListener('touchstart', (e) => {
     if (gameState === 'SWIMMING_RACE' && e.touches.length > 0) {
         raceDragStartX = e.touches[0].clientX;
+        raceDragStartY = e.touches[0].clientY;
     }
 });
 
 canvas.addEventListener('touchend', (e) => {
     if (gameState === 'SWIMMING_RACE' && e.changedTouches.length > 0) {
         const diffX = e.changedTouches[0].clientX - raceDragStartX;
+        const diffY = e.changedTouches[0].clientY - raceDragStartY;
         const rect = canvas.getBoundingClientRect();
         const clickX = e.changedTouches[0].clientX - rect.left;
         const clickY = e.changedTouches[0].clientY - rect.top;
+        
+        // 상하 스와이프 전진/후퇴 조작
+        if (Math.abs(diffY) > 35 && Math.abs(diffY) > Math.abs(diffX)) {
+            if (diffY < -35) {
+                raceState.playerTargetY = Math.max(480, raceState.playerTargetY - 60);
+            } else if (diffY > 35) {
+                raceState.playerTargetY = Math.min(710, raceState.playerTargetY + 60);
+            }
+            return;
+        }
         
         if (Math.abs(diffX) < 15) {
             handleRaceClick(clickX, clickY);
@@ -1829,6 +1867,10 @@ window.addEventListener('keydown', (e) => {
                 raceState.playerLane++;
                 sfx.playSplash();
             }
+        } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+            raceState.playerTargetY = Math.max(480, raceState.playerTargetY - 50);
+        } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+            raceState.playerTargetY = Math.min(710, raceState.playerTargetY + 50);
         } else if (e.key === ' ' || e.code === 'Space') {
             // 퀵 이벤트 중이면 연타 처리
             if (raceState.quickEvent.active && raceState.quickEvent.type === 'mash') {
@@ -2186,39 +2228,7 @@ function drawSwimmingRace() {
     ctx.textAlign = "center";
     ctx.fillText("완주 거리 진행률: " + (Math.floor(progress * 100)) + "%", canvas.width / 2, 86);
 
-    // 8. 하단 영법 컨트롤 바 렌더링 (Y: 660 ~ 725 위치로 위로 올려 짤림 방지!)
-    if (!raceState.raceResults) {
-        ctx.fillStyle = "rgba(20, 25, 35, 0.92)";
-        ctx.fillRect(0, 660, canvas.width, 65);
-        ctx.strokeStyle = "#37474f";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0, 660, canvas.width, 65);
-        
-        const btnWidth = canvas.width / 3;
-        const styles = [
-            { id: 'freestyle', label: '🏊‍♂️ 자유형', desc: '기본속도' },
-            { id: 'butterfly', label: '🦋 접영', desc: '속도+1.6' },
-            { id: 'backstroke', label: '🏊‍♀️ 배형', desc: '무적+자석' }
-        ];
-        
-        styles.forEach((st, idx) => {
-            const bx = idx * btnWidth;
-            const isSelected = (raceState.swimStyle === st.id);
-            
-            ctx.fillStyle = isSelected ? "#0288d1" : "rgba(255, 255, 255, 0.1)";
-            ctx.fillRect(bx + 4, 665, btnWidth - 8, 55);
-            ctx.strokeStyle = isSelected ? "#ffeb3b" : "#546e7a";
-            ctx.lineWidth = isSelected ? 2.5 : 1;
-            ctx.strokeRect(bx + 4, 665, btnWidth - 8, 55);
-            
-            ctx.fillStyle = isSelected ? "#ffffff" : "#b0bec5";
-            ctx.font = "bold 13px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(st.label, bx + btnWidth / 2, 687);
-            ctx.font = "10px Arial";
-            ctx.fillText(st.desc, bx + btnWidth / 2, 707);
-        });
-    }
+
     
     // 6. 경기 종료 결과창 디스플레이
     if (raceState.raceResults) {

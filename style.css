@@ -610,5 +610,49 @@ h2 {
 
 .key-btn:active {
     transform: translateY(3px);
-    box-shadow: 0 0px 0 #1b2530;
+    box-shadow: 0 0 0 #1b2530;
+}
+
+/* 하단 고정 수영 영법 선택 바 */
+#swim-style-bar {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    width: 92%;
+    box-sizing: border-box;
+}
+
+.swim-style-btn {
+    flex: 1;
+    background-color: rgba(20, 30, 45, 0.92);
+    border: 2px solid #546e7a;
+    border-radius: 12px;
+    color: #b0bec5;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 8px 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.swim-style-btn small {
+    font-size: 10px;
+    font-weight: normal;
+    opacity: 0.85;
+}
+
+.swim-style-btn.active {
+    background-color: #0288d1;
+    border-color: #ffeb3b;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(2, 136, 209, 0.6);
 }

@@ -305,6 +305,13 @@
 
         <!-- 훈련 완료 시 퇴장 버튼 (모바일용) -->
         <button class="menu-btn back-btn" id="btn-gym-finish-exit" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 10; width: 80%;">🚪 체육관 로비로 가기</button>
+
+        <!-- 수영 영법 선택 하단 고정 바 (HTML UI) -->
+        <div id="swim-style-bar" style="display: none;">
+            <button class="swim-style-btn active" data-style="freestyle">🏊‍♂️ 자유형<br><small>기본속도</small></button>
+            <button class="swim-style-btn" data-style="butterfly">🦋 접영<br><small>속도+1.6</small></button>
+            <button class="swim-style-btn" data-style="backstroke">🏊‍♀️ 배형<br><small>무적+자석</small></button>
+        </div>
     </div>
     
     <!-- 게임의 로직을 담당하는 자바스크립트 파일 연결 -->
