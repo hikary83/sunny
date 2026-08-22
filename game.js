@@ -1310,6 +1310,8 @@ let raceState = {
     playerY: 620,
     playerTargetY: 620, // 상하 전진/후퇴 보간 목표 Y 좌표
     playerSpeed: 0,
+    cameraScale: 1.0, // 실시간 카메라 줌 비율 (0.88 ~ 1.1)
+    targetCameraScale: 1.0,
     spurtCharges: 3,
     spurtTimer: 0,
     spurtGauge: 0, // 0~100 스퍼트 게이지
@@ -1631,21 +1633,41 @@ function updateRaceLogic() {
     raceState.obstacles = raceState.obstacles.filter(o => o.y < canvas.height + 50);
     raceState.gifts = raceState.gifts.filter(g => g.y < canvas.height + 50);
     
-    // 5. NPC 움직임 업데이트 (정직한 접전 물리 엔진 - 누적 폭발 버그 삭제!)
+    // 5. 실시간 동적 카메라 줌(Zoom Scale) 계산
+    let closestDist = 9999;
+    raceState.competitors.forEach(npc => {
+        const d = Math.hypot(npc.x - raceState.playerX, npc.y - raceState.playerY);
+        if (d < closestDist) closestDist = d;
+    });
+
+    // 팽팽한 1:1 접전(130px 이내) 시 줌인(1.1배 확대), 큰 격차(220px 이상) 시 줌아웃(0.88배 축소)
+    if (closestDist < 130) {
+        raceState.targetCameraScale = 1.1;
+    } else if (closestDist > 220) {
+        raceState.targetCameraScale = 0.88;
+    } else {
+        raceState.targetCameraScale = 1.0;
+    }
+    
+    // 매 프레임 카메라 스케일 부드러운 보간
+    raceState.cameraScale += (raceState.targetCameraScale - raceState.cameraScale) * 0.05;
+    
+    // 6. NPC 고무줄 추격 물리 엔진 (화면 바닥에 굳어 멈추지 않고 생생하게 쫓아오도록 보간)
     const now = Date.now();
     raceState.competitors.forEach((npc, idx) => {
-        // 주기적 페이스 변화 (사인파 효과로 엎치락뒤치락 연출)
         const wave = Math.sin(now * 0.003 + idx * 1.5) * 0.4;
         npc.currentSpeed = npc.baseSpeed + wave;
         
-        // 플레이어와의 상대 속도 차이에 따라 부드럽게 위치 이동
         const speedDiff = raceState.playerSpeed - npc.currentSpeed;
-        npc.y += speedDiff * 0.15;
-        npc.animFrame += npc.currentSpeed * 2.0; // 개별 속도 비례 발차기 프레임
+        npc.y += speedDiff * 0.12;
+        npc.animFrame += npc.currentSpeed * 2.0;
         
-        // 화면 시야 범위(160~700) 안에서 자연스럽게 가둠 (속도 곱셈 버그 제거!)
+        // 뒤처진 선수가 바닥(700px)에 딱 굳어버리지 않도록, 플레이어 뒤쪽 630~680px 범위로 생생하게 쫓아오게 보간
+        const maxFollowY = raceState.playerY + 70 + (idx * 18);
+        if (npc.y > maxFollowY) {
+            npc.y += (maxFollowY - npc.y) * 0.08;
+        }
         if (npc.y < 160) npc.y = 160;
-        if (npc.y > 700) npc.y = 700;
     });
     
     // 6. 결승골 검사
@@ -2040,6 +2062,13 @@ function drawHuman(ctx, x, y, gender, lv, dir, animTime) {
 function drawSwimmingRace() {
     const details = stageDetails[currentRaceStage];
     
+    ctx.save();
+    // 0. 실시간 동적 카메라 줌인/줌아웃 변환 (플레이어 위치 기준 중심 보간)
+    const camScale = raceState.cameraScale || 1.0;
+    ctx.translate(canvas.width / 2, raceState.playerY);
+    ctx.scale(camScale, camScale);
+    ctx.translate(-canvas.width / 2, -raceState.playerY);
+    
     // 1. 무한 스크롤 타일형 맵 배경 렌더링
     let bgImg = images.bg_water;
     if (details.bg === "bg_valley") bgImg = images.bg_valley;
@@ -2192,6 +2221,9 @@ function drawSwimmingRace() {
             });
         }
     }
+    
+    // 카메라 Transform 복원 (UI 상단 헤더 및 결과창은 고정 렌더링)
+    ctx.restore();
     
     // 7. 실시간 정보 헤더 레이아웃 (스퍼트 게이지 진행바)
     ctx.fillStyle = "rgba(13, 17, 23, 0.92)";
