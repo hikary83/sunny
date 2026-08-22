@@ -1506,7 +1506,8 @@ function updateRaceLogic() {
     // 5. NPC 움직임 업데이트
     raceState.competitors.forEach(npc => {
         // NPC들의 가상 전진 거리를 속도 비율로 계산하여 플레이어와의 상대 y좌표를 시뮬레이션
-        npc.y -= (raceState.playerSpeed - npc.currentSpeed) * 0.8;
+        // (플레이어가 빠를수록 NPC는 화면 아래(y 증가)로 처짐)
+        npc.y += (raceState.playerSpeed - npc.currentSpeed) * 0.8;
         npc.animFrame += npc.currentSpeed * 2.0; // 속도 비례 개별 프레임 가속
         
         // NPC들이 화면 밖에 너무 쳐지거나 앞서나가는 한계 제한
