@@ -598,7 +598,7 @@ stageButtons.forEach((btn, idx) => {
     if (!btn) return;
     btn.addEventListener('click', () => {
         if (btn.classList.contains('locked')) {
-            alert("대회 참가 조건이 안 되거나, 이전 단계를 먼저 우승하셔야 합니다!");
+            alert("다음 단계 출전을 위해서 체육관에서 훈련하여 레벨을 성장하세요!");
             return;
         }
         const stageNum = idx + 1;
@@ -2364,21 +2364,38 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// --- 마우스 & 터치 이벤트 통합 매핑 (체육관 드래그 & 클릭 대응) ---
+// --- 마우스 & 터치 이벤트 통합 매핑 (체육관 드래그 & 좌표 스케일링 보정) ---
+function getCanvasCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    }
+    return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+let lastGymTouchTime = 0;
+
 canvas.addEventListener('click', (e) => {
     if (gameState !== 'GYM_TRAINING') return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    handleGymTouchOrClick(x, y);
+    // 터치와 마우스 동시 호출 방지 (300ms 이내 터치 이력 검사)
+    if (Date.now() - lastGymTouchTime < 350) return;
+    const coords = getCanvasCoords(e);
+    handleGymTouchOrClick(coords.x, coords.y);
 });
 
 canvas.addEventListener('mousemove', (e) => {
     if (gameState !== 'GYM_TRAINING') return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    handleGymDrag(x, y);
+    const coords = getCanvasCoords(e);
+    handleGymDrag(coords.x, coords.y);
 });
 
 canvas.addEventListener('mouseup', () => {
@@ -2387,28 +2404,20 @@ canvas.addEventListener('mouseup', () => {
     }
 });
 
-// 모바일 터치 대응
+// 모바일 터치 대응 (스케일 보정 및 중복 클릭 방지)
 canvas.addEventListener('touchstart', (e) => {
     if (gameState !== 'GYM_TRAINING') return;
-    if (e.touches.length > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const y = e.touches[0].clientY - rect.top;
-        handleGymTouchOrClick(x, y);
-    }
-    // 스크롤 등 기본동작 차단
-    e.preventDefault();
+    lastGymTouchTime = Date.now();
+    const coords = getCanvasCoords(e);
+    handleGymTouchOrClick(coords.x, coords.y);
+    if (e.cancelable) e.preventDefault();
 }, { passive: false });
 
 canvas.addEventListener('touchmove', (e) => {
     if (gameState !== 'GYM_TRAINING') return;
-    if (e.touches.length > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const y = e.touches[0].clientY - rect.top;
-        handleGymDrag(x, y);
-    }
-    e.preventDefault();
+    const coords = getCanvasCoords(e);
+    handleGymDrag(coords.x, coords.y);
+    if (e.cancelable) e.preventDefault();
 }, { passive: false });
 
 canvas.addEventListener('touchend', () => {
