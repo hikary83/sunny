@@ -21,6 +21,9 @@ body {
     position: relative;
     width: 450px;
     height: 800px;
+    max-height: 95vh;
+    max-width: 95vw;
+    aspect-ratio: 450 / 800;
     background-color: #0d1117;
     border: 6px solid #2f363d;
     border-radius: 16px;

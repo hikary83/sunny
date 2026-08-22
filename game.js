@@ -1679,8 +1679,8 @@ function updateRaceLogic() {
 function handleRaceClick(clickX, clickY) {
     if (gameState !== 'SWIMMING_RACE' || raceState.raceResults) return;
     
-    // 1. 하단 영법 스위치 바 클릭 감지 (Y >= 730)
-    if (clickY >= 730) {
+    // 1. 하단 영법 스위치 바 클릭 감지 (Y >= 660)
+    if (clickY >= 660) {
         if (clickX < canvas.width / 3) {
             raceState.swimStyle = 'freestyle';
             sfx.playSplash();
@@ -2089,45 +2089,135 @@ function drawSwimmingRace() {
         ctx.fillText("나", raceState.playerX, raceState.playerY + 47);
     }
     
-    // 5. 실시간 정보 헤더 레이아웃
-    ctx.fillStyle = "rgba(13, 17, 23, 0.85)";
-    ctx.fillRect(0, 0, canvas.width, 100);
+    // 5. 리듬 물방울 과녁 렌더링
+    if (raceState.rhythmBubble.active) {
+        const pulse = 1.0 + Math.sin(Date.now() / 100) * 0.15;
+        ctx.save();
+        ctx.translate(raceState.rhythmBubble.x, raceState.rhythmBubble.y);
+        ctx.scale(pulse, pulse);
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, 26, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0, 188, 212, 0.85)";
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 13px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("💦 TAP!", 0, 5);
+        ctx.restore();
+    }
+    
+    // 6. 3초 퀵 미니 이벤트 오버레이 (화면 중앙)
+    if (raceState.quickEvent.active) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(0, 110, canvas.width, 320);
+        
+        const secLeft = Math.ceil(raceState.quickEvent.timer / 60);
+        ctx.fillStyle = "#ffeb3b";
+        ctx.font = "bold 22px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("⚡ 3초 퀵 챌린지! (" + secLeft + "초)", canvas.width / 2, 150);
+        
+        if (raceState.quickEvent.type === 'mash') {
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 18px Arial";
+            ctx.fillText("🔥 화면을 마구 연타하세요!", canvas.width / 2, 195);
+            ctx.font = "bold 45px Arial";
+            ctx.fillStyle = "#ff5722";
+            ctx.fillText(raceState.quickEvent.count + " 타!", canvas.width / 2, 270);
+        } else {
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 18px Arial";
+            ctx.fillText("🎯 황금 조개를 재빨리 터트리세요!", canvas.width / 2, 190);
+            
+            raceState.quickEvent.shells.forEach(shell => {
+                if (!shell.hit) {
+                    ctx.beginPath();
+                    ctx.arc(shell.x, shell.y, 25, 0, Math.PI * 2);
+                    ctx.fillStyle = "#f1c40f";
+                    ctx.fill();
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 16px Arial";
+                    ctx.fillText("🐚", shell.x, shell.y + 6);
+                }
+            });
+        }
+    }
+    
+    // 7. 실시간 정보 헤더 레이아웃 (스퍼트 게이지 진행바)
+    ctx.fillStyle = "rgba(13, 17, 23, 0.92)";
+    ctx.fillRect(0, 0, canvas.width, 105);
     
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 15px Arial";
+    ctx.font = "bold 14px Arial";
     ctx.textAlign = "left";
-    ctx.fillText("🏁 Stage " + (currentRaceStage) + ": " + (details.name), 15, 30);
+    ctx.fillText("🏁 " + (details.name), 15, 25);
     
-    // 스퍼트 번호
-    ctx.fillStyle = "#ffeb3b";
-    ctx.fillText("⚡ 스퍼트 가속 (터치/Space): " + (raceState.spurtCharges) + "회", 15, 55);
+    // 스퍼트 게이지 바
+    ctx.fillStyle = "#34495e";
+    ctx.fillRect(15, 35, canvas.width - 30, 16);
+    const gaugeFill = raceState.spurtGauge / 100;
+    const gaugeColor = (raceState.spurtGauge >= 100) ? "#ffeb3b" : "#00bcd4";
+    ctx.fillStyle = gaugeColor;
+    ctx.fillRect(15, 35, (canvas.width - 30) * gaugeFill, 16);
+    
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = "center";
+    const gaugeText = (raceState.spurtGauge >= 100) ? "⚡ 100% 챔피언 스퍼트 준비 완료! (터치/Space)" : "⚡ 스퍼트 게이지: " + (Math.floor(raceState.spurtGauge)) + "%";
+    ctx.fillText(gaugeText, canvas.width / 2, 48);
     
     // 거리 완주 진행률
     const progress = Math.min(1.0, raceState.distance / raceState.targetDistance);
     ctx.fillStyle = "#34495e";
-    ctx.fillRect(15, 70, canvas.width - 30, 15);
+    ctx.fillRect(15, 75, canvas.width - 30, 14);
     ctx.fillStyle = "#2ecc71";
-    ctx.fillRect(15, 70, (canvas.width - 30) * progress, 15);
+    ctx.fillRect(15, 75, (canvas.width - 30) * progress, 14);
     
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 10px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("완주 거리 진행률: " + (Math.floor(progress * 100)) + "%", canvas.width / 2, 82);
+    ctx.fillText("완주 거리 진행률: " + (Math.floor(progress * 100)) + "%", canvas.width / 2, 86);
 
-    // 스퍼트 가이드 안내 문구 (하단 중앙 플로팅)
-    if (!raceState.raceResults && raceState.spurtCharges > 0 && raceState.spurtTimer <= 0) {
-        // 손가락 터치 제스처 아이콘 드로잉 (바운싱 탭 애니메이션 효과 포함)
-        const tapImg = images.icon_touch_tap;
-        if (isAssetsLoaded && tapImg && tapImg.complete && tapImg.naturalHeight > 0) {
-            const bounceY = Math.sin(Date.now() / 150) * 6; // 통통 튀는 애니메이션
-            const size = 65;
-            ctx.drawImage(tapImg, canvas.width / 2 - size / 2, 630 + bounceY, size, size);
-        }
+    // 8. 하단 영법 컨트롤 바 렌더링 (Y: 660 ~ 725 위치로 위로 올려 짤림 방지!)
+    if (!raceState.raceResults) {
+        ctx.fillStyle = "rgba(20, 25, 35, 0.92)";
+        ctx.fillRect(0, 660, canvas.width, 65);
+        ctx.strokeStyle = "#37474f";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 660, canvas.width, 65);
         
-        ctx.fillStyle = "rgba(255, 235, 59, 0.95)";
-        ctx.font = "bold 13px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("⚡ 화면 중앙 터치 또는 Space 키로 스퍼트! ⚡", canvas.width / 2, 720);
+        const btnWidth = canvas.width / 3;
+        const styles = [
+            { id: 'freestyle', label: '🏊‍♂️ 자유형', desc: '기본속도' },
+            { id: 'butterfly', label: '🦋 접영', desc: '속도+1.6' },
+            { id: 'backstroke', label: '🏊‍♀️ 배형', desc: '무적+자석' }
+        ];
+        
+        styles.forEach((st, idx) => {
+            const bx = idx * btnWidth;
+            const isSelected = (raceState.swimStyle === st.id);
+            
+            ctx.fillStyle = isSelected ? "#0288d1" : "rgba(255, 255, 255, 0.1)";
+            ctx.fillRect(bx + 4, 665, btnWidth - 8, 55);
+            ctx.strokeStyle = isSelected ? "#ffeb3b" : "#546e7a";
+            ctx.lineWidth = isSelected ? 2.5 : 1;
+            ctx.strokeRect(bx + 4, 665, btnWidth - 8, 55);
+            
+            ctx.fillStyle = isSelected ? "#ffffff" : "#b0bec5";
+            ctx.font = "bold 13px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(st.label, bx + btnWidth / 2, 687);
+            ctx.font = "10px Arial";
+            ctx.fillText(st.desc, bx + btnWidth / 2, 707);
+        });
     }
     
     // 6. 경기 종료 결과창 디스플레이
