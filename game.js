@@ -840,6 +840,20 @@ function drawGymTraining() {
     ctx.textAlign = "center";
     ctx.fillText("🏋️ 훈련 중: " + (currentGymGame), canvas.width / 2, 40);
     
+    // 상단 오른쪽 '🚪 중단' 버튼 렌더링 (Option A)
+    if (gymState.gameState === "PLAYING") {
+        ctx.fillStyle = "#e74c3c";
+        ctx.fillRect(canvas.width - 85, 12, 72, 32);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(canvas.width - 85, 12, 72, 32);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("🚪 중단", canvas.width - 49, 33);
+    }
+    
     if (gymState.gameState === "PLAYING") {
         ctx.font = "14px Arial";
         ctx.fillStyle = "#ffeb3b";
@@ -1141,6 +1155,18 @@ function drawGymTraining() {
 function handleGymTouchOrClick(x, y) {
     if (gymState.gameState !== "PLAYING") return;
     
+    // 상단 오른쪽 '🚪 중단' 버튼 터치 감지 (Option A)
+    if (x >= canvas.width - 95 && y <= 50) {
+        finishGymTraining(false);
+        gameState = 'GYM_SELECTION';
+        hideAllUIs();
+        gymUi.style.display = 'flex';
+        keyboardPad.style.display = 'none';
+        updateLobbyUI();
+        triggerFeedback("🚪 훈련을 중단하고 돌아왔습니다.");
+        return;
+    }
+    
     if (currentGymGame === 'BOXING') {
         const target = gymState.elements[0];
         if (target) {
@@ -1173,15 +1199,20 @@ function handleGymTouchOrClick(x, y) {
         const rx = gymState.elements;
         if (rx.status === 'RED') {
             // 조기 터치 패널티
-            rx.nextChange = Date.now() + 2000 + Math.random() * 3000;
-            alert("조기 출발! 빨간불에는 대기해야 합니다!");
+            rx.nextChange = Date.now() + 2000 + Math.random() * 2500;
+            triggerFeedback("⚠️ 조기 출발! 초록불이 켜질 때까지 대기하세요!");
         } else if (rx.status === 'GREEN') {
             rx.clickTime = Date.now();
             const delay = rx.clickTime - rx.startTime;
-            if (delay < 450) {
+            if (delay <= 700) {
+                let praise = "🎉 훈련 성공! (" + delay + "ms)";
+                if (delay <= 350) praise = "⚡ 신이 내린 반응속도! (" + delay + "ms)";
+                else if (delay <= 500) praise = "🥇 챔피언급 순발력! (" + delay + "ms)";
+                
+                triggerFeedback(praise);
                 finishGymTraining(true);
             } else {
-                alert("반응 속도(" + (delay) + "ms)가 너무 느립니다! 450ms 이하를 노려보세요!");
+                triggerFeedback("😢 반응속도(" + delay + "ms)가 조금 느립니다! 700ms 이내를 노려보세요!");
                 startGymTraining('REACTION'); // 재도전
             }
         }
