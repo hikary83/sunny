@@ -1304,13 +1304,18 @@ function handleGymDragEnd() {
 
 let raceState = {
     distance: 0,
-    targetDistance: 3500, // 완주 거리 기본값
+    targetDistance: 1500, // 완주 거리 기본값
     playerLane: 1, // 0~3 레인
     playerX: 0,
     playerY: 650,
     playerSpeed: 0,
     spurtCharges: 3,
     spurtTimer: 0,
+    spurtGauge: 0, // 0~100 스퍼트 게이지
+    swimStyle: 'freestyle', // 'freestyle', 'butterfly', 'backstroke'
+    rhythmBubble: { active: false, x: 0, y: 0, timer: 0, cooldown: 120 },
+    quickEvent: { active: false, triggered: false, type: 'mash', timer: 0, count: 0, shells: [] },
+    rainbowParticles: [],
     obstacles: [],
     gifts: [],
     competitors: [],
@@ -1348,6 +1353,13 @@ function startSwimmingRace(stageNum) {
     raceState.playerY = 650;
     raceState.playerSpeed = 0;
     raceState.slowTimer = 0;
+    
+    // 신규 게임플레이 요소 초기화
+    raceState.spurtGauge = 0;
+    raceState.swimStyle = 'freestyle';
+    raceState.rhythmBubble = { active: false, x: 0, y: 0, timer: 0, cooldown: 90 };
+    raceState.quickEvent = { active: false, triggered: false, type: 'mash', timer: 0, count: 0, shells: [] };
+    raceState.rainbowParticles = [];
     
     // 드링크류 버프 적용 후 스퍼트 충전 횟수 추가
     raceState.spurtCharges = 3 + player.spurtExtraCharge;
@@ -1395,9 +1407,28 @@ function updateRaceLogic() {
     
     const details = stageDetails[currentRaceStage];
     
-    // 1. 플레이어 수영 속도 업데이트 (기본 스탯 비례)
-    // 기본 속도 3.2, 스피드 1점당 +0.12 속도 증가
-    let targetSpeed = 3.2 + (player.speed * 0.12);
+    // 영법 스타일별 효과 계산 (자유형 / 접영 / 배형)
+    let styleSpeedBonus = 0;
+    if (raceState.swimStyle === 'butterfly') {
+        // 접영: 폭발적 파워 속도 +1.6! (스퍼트 게이지 지속 소모)
+        styleSpeedBonus = 1.6;
+        if (raceState.spurtGauge > 0) {
+            raceState.spurtGauge -= 0.25;
+        } else {
+            raceState.swimStyle = 'freestyle';
+            triggerFeedback("🏊 스퍼트 게이지 소진! 자유형으로 자동 전환되었습니다.");
+        }
+    } else if (raceState.swimStyle === 'backstroke') {
+        // 배형: 선물 상자 및 코인 자석 자동 흡수
+        raceState.gifts.forEach(gift => {
+            if (Math.abs(gift.x - raceState.playerX) < 150 && gift.y < raceState.playerY) {
+                gift.x += (raceState.playerX - gift.x) * 0.12;
+            }
+        });
+    }
+    
+    // 1. 플레이어 수영 속도 업데이트 (기본 스탯 비례 + 영법 보너스)
+    let targetSpeed = 3.2 + (player.speed * 0.12) + styleSpeedBonus;
     
     // 단백질/에너지 드링크 영구/소모 버프가 있으면 추가 속도 적용
     if (player.energyDrinkBoost > 0) {
@@ -1412,9 +1443,29 @@ function updateRaceLogic() {
     
     // 스퍼트 가속 효과
     if (raceState.spurtTimer > 0) {
-        targetSpeed += 4.0;
+        targetSpeed += 4.5;
         raceState.spurtTimer--;
+        
+        // 무지개 파티클 생성
+        if (Math.random() < 0.6) {
+            raceState.rainbowParticles.push({
+                x: raceState.playerX + (Math.random() * 30 - 15),
+                y: raceState.playerY + 20,
+                vx: (Math.random() - 0.5) * 3,
+                vy: Math.random() * 4 + 2,
+                color: "hsl(" + (Math.random() * 360) + ", 100%, 65%)",
+                life: 25
+            });
+        }
     }
+    
+    // 무지개 파티클 라이프타임 업데이트
+    raceState.rainbowParticles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+    });
+    raceState.rainbowParticles = raceState.rainbowParticles.filter(p => p.life > 0);
     
     raceState.playerSpeed = targetSpeed;
     raceState.distance += raceState.playerSpeed * 0.3; // 진행 거리 누적
@@ -1435,6 +1486,65 @@ function updateRaceLogic() {
         invulnerableTimer--;
         if (invulnerableTimer <= 0) {
             isInvulnerable = false;
+        }
+    }
+    
+    // 리듬 물방울 과녁 스폰 & 타이머 관리
+    if (!raceState.rhythmBubble.active && !raceState.quickEvent.active) {
+        raceState.rhythmBubble.cooldown--;
+        if (raceState.rhythmBubble.cooldown <= 0) {
+            raceState.rhythmBubble.active = true;
+            raceState.rhythmBubble.timer = 120; // 2초 노출
+            raceState.rhythmBubble.x = raceState.playerX + (Math.random() * 60 - 30);
+            raceState.rhythmBubble.y = raceState.playerY - 85;
+            raceState.rhythmBubble.cooldown = 150; // 다음 스폰 2.5초 후
+        }
+    } else if (raceState.rhythmBubble.active) {
+        raceState.rhythmBubble.timer--;
+        if (raceState.rhythmBubble.timer <= 0) {
+            raceState.rhythmBubble.active = false;
+        }
+    }
+    
+    // 3초 퀵 미니 이벤트 (진행률 45% 시점 발동)
+    if (!raceState.quickEvent.triggered && raceState.distance >= raceState.targetDistance * 0.45) {
+        raceState.quickEvent.triggered = true;
+        raceState.quickEvent.active = true;
+        raceState.quickEvent.timer = 180; // 3초 (180프레임)
+        raceState.quickEvent.count = 0;
+        raceState.quickEvent.type = Math.random() < 0.5 ? 'mash' : 'shell';
+        if (raceState.quickEvent.type === 'shell') {
+            raceState.quickEvent.shells = [
+                { x: 90 + Math.random() * 60, y: 320 + Math.random() * 80, hit: false },
+                { x: 190 + Math.random() * 60, y: 320 + Math.random() * 80, hit: false },
+                { x: 290 + Math.random() * 60, y: 320 + Math.random() * 80, hit: false }
+            ];
+        }
+        sfx.playVictory();
+    }
+    
+    if (raceState.quickEvent.active) {
+        raceState.quickEvent.timer--;
+        if (raceState.quickEvent.timer <= 0) {
+            raceState.quickEvent.active = false;
+            if (raceState.quickEvent.type === 'mash') {
+                const count = raceState.quickEvent.count;
+                raceState.spurtTimer = 120; // 가속 2초
+                raceState.spurtGauge = Math.min(100, raceState.spurtGauge + 30);
+                triggerFeedback("🔥 3초 연타 완료! (" + count + "타) 챔피언 가속 부스트!");
+            } else {
+                const hitCount = raceState.quickEvent.shells.filter(s => s.hit).length;
+                if (hitCount >= 3) {
+                    raceState.spurtTimer = 150;
+                    player.coins += 30;
+                    savePlayerData();
+                    triggerFeedback("🎯 황금 조개 퍼펙트! +30 코인 & 울트라 부스트!");
+                } else {
+                    player.coins += hitCount * 10;
+                    savePlayerData();
+                    triggerFeedback("🎯 조개 " + hitCount + "개 터트림! +" + (hitCount * 10) + " 코인");
+                }
+            }
         }
     }
     
@@ -1468,8 +1578,8 @@ function updateRaceLogic() {
     raceState.obstacles.forEach(obs => {
         obs.y += raceState.playerSpeed * 0.6; // 플레이어 상대적 속도로 통과
         
-        // 충돌 검사
-        if (!isInvulnerable && Math.abs(obs.x - raceState.playerX) < 35 && Math.abs(obs.y - raceState.playerY) < 40) {
+        // 충돌 검사 (배형 영법은 장애물 충돌 무시!)
+        if (raceState.swimStyle !== 'backstroke' && !isInvulnerable && Math.abs(obs.x - raceState.playerX) < 35 && Math.abs(obs.y - raceState.playerY) < 40) {
             // 충돌 시 감속 및 무적 부여
             isInvulnerable = true;
             invulnerableTimer = 60;
@@ -1565,6 +1675,78 @@ function updateRaceLogic() {
     }
 }
 
+// 통합 레이스 터치/클릭 처리 함수
+function handleRaceClick(clickX, clickY) {
+    if (gameState !== 'SWIMMING_RACE' || raceState.raceResults) return;
+    
+    // 1. 하단 영법 스위치 바 클릭 감지 (Y >= 730)
+    if (clickY >= 730) {
+        if (clickX < canvas.width / 3) {
+            raceState.swimStyle = 'freestyle';
+            sfx.playSplash();
+            triggerFeedback("🏊 자유형 전환! (기본 속도)");
+        } else if (clickX >= canvas.width / 3 && clickX < (canvas.width * 2) / 3) {
+            if (raceState.spurtGauge > 0) {
+                raceState.swimStyle = 'butterfly';
+                sfx.playSpurt();
+                triggerFeedback("🦋 접영 파워 전환! (속도+1.6 폭발 가속)");
+            } else {
+                triggerFeedback("⚠️ 스퍼트 게이지가 부족합니다!");
+            }
+        } else {
+            raceState.swimStyle = 'backstroke';
+            sfx.playSplash();
+            triggerFeedback("🏊‍♀️ 배형 전환! (장애물 무적 + 코인 자석)");
+        }
+        return;
+    }
+    
+    // 2. 3초 퀵 미니 이벤트 터치 감지
+    if (raceState.quickEvent.active) {
+        if (raceState.quickEvent.type === 'mash') {
+            raceState.quickEvent.count++;
+            sfx.playCoin();
+            return;
+        } else if (raceState.quickEvent.type === 'shell') {
+            raceState.quickEvent.shells.forEach(shell => {
+                if (!shell.hit && Math.abs(shell.x - clickX) < 40 && Math.abs(shell.y - clickY) < 40) {
+                    shell.hit = true;
+                    sfx.playCoin();
+                }
+            });
+            return;
+        }
+    }
+    
+    // 3. 리듬 물방울 과녁 터치 감지
+    if (raceState.rhythmBubble.active) {
+        const dist = Math.hypot(clickX - raceState.rhythmBubble.x, clickY - raceState.rhythmBubble.y);
+        if (dist < 45) {
+            raceState.rhythmBubble.active = false;
+            raceState.spurtGauge = Math.min(100, raceState.spurtGauge + 25);
+            sfx.playSplash();
+            triggerFeedback("💦 PERFECT! +25% 스퍼트 게이지!");
+            return;
+        }
+    }
+    
+    // 4. 일반 좌우 레인 이동 및 스퍼트 가속
+    const details = stageDetails[currentRaceStage];
+    if (clickX < canvas.width / 3) {
+        if (raceState.playerLane > 0) {
+            raceState.playerLane--;
+            sfx.playSplash();
+        }
+    } else if (clickX > (canvas.width * 2) / 3) {
+        if (raceState.playerLane < details.lanes - 1) {
+            raceState.playerLane++;
+            sfx.playSplash();
+        }
+    } else {
+        triggerRaceSpurt();
+    }
+}
+
 // 상대방 터치/드래그 방향 전환 감지
 let raceDragStartX = 0;
 canvas.addEventListener('touchstart', (e) => {
@@ -1576,36 +1758,23 @@ canvas.addEventListener('touchstart', (e) => {
 canvas.addEventListener('touchend', (e) => {
     if (gameState === 'SWIMMING_RACE' && e.changedTouches.length > 0) {
         const diffX = e.changedTouches[0].clientX - raceDragStartX;
-        const details = stageDetails[currentRaceStage];
+        const rect = canvas.getBoundingClientRect();
+        const clickX = e.changedTouches[0].clientX - rect.left;
+        const clickY = e.changedTouches[0].clientY - rect.top;
         
         if (Math.abs(diffX) < 15) {
-            // 스와이프가 아닌 단순 탭 클릭인 경우
-            const clickX = e.changedTouches[0].clientX - canvas.getBoundingClientRect().left;
-            if (clickX < canvas.width / 3) {
-                if (raceState.playerLane > 0) {
-                    raceState.playerLane--;
-                    sfx.playSplash(); // 튐 효과음
-                }
-            } else if (clickX > (canvas.width * 2) / 3) {
-                if (raceState.playerLane < details.lanes - 1) {
-                    raceState.playerLane++;
-                    sfx.playSplash(); // 튐 효과음
-                }
-            } else {
-                // 화면 중앙 탭 시 스퍼트 가속!
-                triggerRaceSpurt();
-            }
+            handleRaceClick(clickX, clickY);
         } else {
-            // 스와이프를 통한 레인 이동
+            const details = stageDetails[currentRaceStage];
             if (diffX > 40) {
                 if (raceState.playerLane < details.lanes - 1) {
                     raceState.playerLane++;
-                    sfx.playSplash(); // 튐 효과음
+                    sfx.playSplash();
                 }
             } else if (diffX < -40) {
                 if (raceState.playerLane > 0) {
                     raceState.playerLane--;
-                    sfx.playSplash(); // 튐 효과음
+                    sfx.playSplash();
                 }
             }
         }
@@ -1623,25 +1792,14 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mouseup', (e) => {
     if (gameState === 'SWIMMING_RACE') {
         const diffX = e.clientX - mouseDragStartX;
-        const details = stageDetails[currentRaceStage];
+        const rect = canvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
         
         if (Math.abs(diffX) < 15) {
-            const clickX = e.clientX - canvas.getBoundingClientRect().left;
-            if (clickX < canvas.width / 3) {
-                if (raceState.playerLane > 0) {
-                    raceState.playerLane--;
-                    sfx.playSplash();
-                }
-            } else if (clickX > (canvas.width * 2) / 3) {
-                if (raceState.playerLane < details.lanes - 1) {
-                    raceState.playerLane++;
-                    sfx.playSplash();
-                }
-            } else {
-                // 화면 중앙 클릭 시 스퍼트 가속!
-                triggerRaceSpurt();
-            }
+            handleRaceClick(clickX, clickY);
         } else {
+            const details = stageDetails[currentRaceStage];
             if (diffX > 40) {
                 if (raceState.playerLane < details.lanes - 1) {
                     raceState.playerLane++;
@@ -1672,99 +1830,91 @@ window.addEventListener('keydown', (e) => {
                 sfx.playSplash();
             }
         } else if (e.key === ' ' || e.code === 'Space') {
-            // 스페이스바로 스퍼트 가속
-            triggerRaceSpurt();
+            // 퀵 이벤트 중이면 연타 처리
+            if (raceState.quickEvent.active && raceState.quickEvent.type === 'mash') {
+                raceState.quickEvent.count++;
+                sfx.playCoin();
+            } else if (raceState.rhythmBubble.active) {
+                // 리듬 과녁 활성화 시 타이밍 탭!
+                raceState.rhythmBubble.active = false;
+                raceState.spurtGauge = Math.min(100, raceState.spurtGauge + 25);
+                sfx.playSplash();
+                triggerFeedback("💦 PERFECT! +25% 스퍼트 게이지!");
+            } else {
+                triggerRaceSpurt();
+            }
         }
     }
 });
 
 function triggerRaceSpurt() {
-    if (raceState.spurtCharges > 0 && raceState.spurtTimer <= 0) {
-        raceState.spurtCharges--;
+    if ((raceState.spurtGauge >= 100 || raceState.spurtCharges > 0) && raceState.spurtTimer <= 0) {
+        if (raceState.spurtGauge >= 100) {
+            raceState.spurtGauge = 0;
+        } else {
+            raceState.spurtCharges--;
+        }
         raceState.spurtTimer = 180; // 3초 가속
-        sfx.playSpurt(); // 스퍼트 효과음
-        triggerFeedback("💨 폭풍 스퍼트 발동! 슈우우웅!");
+        
+        // 무지개 파티클 생성
+        for (let i = 0; i < 25; i++) {
+            raceState.rainbowParticles.push({
+                x: raceState.playerX + (Math.random() * 40 - 20),
+                y: raceState.playerY + (Math.random() * 20),
+                vx: (Math.random() - 0.5) * 4,
+                vy: Math.random() * 6 + 2,
+                color: "hsl(" + (Math.random() * 360) + ", 100%, 60%)",
+                life: 30
+            });
+        }
+        sfx.playSpurt();
+        triggerFeedback("🌈 무지개 슈퍼 스퍼트 발동! 슝~~~!");
     }
 }
 
 // 10단계 시각 외형 변화를 위한 인체 그리기 함수 (Voxel 리스킨 Fallback 대응)
 function drawHuman(ctx, x, y, gender, lv, dir, animTime) {
-    // 이미지 스프라이트 렌더링 시도
-    let spriteLv = 1;
-    if (lv >= 10) spriteLv = 10;
-    else if (lv >= 7) spriteLv = 7;
-    else if (lv >= 5) spriteLv = 5;
-    else if (lv >= 3) spriteLv = 3;
-    const imgKey = "char_" + gender + "_lv" + spriteLv;
-    const img = images[imgKey];
-    
-    if (isAssetsLoaded && img && img.complete && img.naturalHeight > 0) {
-        ctx.save();
-        // 레벨에 따른 키 1.0~1.2 스케일링
-        const heightScale = 1.0 + (Math.min(10, lv) - 1) * 0.02;
-        ctx.translate(x, y);
-        ctx.scale(1.0, heightScale);
-        
-        // 흔들림 애니메이션 효과
-        if (animTime > 0) {
-            const sway = Math.sin(animTime / 100) * 3;
-            ctx.rotate(sway * Math.PI / 180);
-        } else {
-            const idleSway = Math.sin(Date.now() / 150) * 2;
-            ctx.rotate(idleSway * Math.PI / 180);
-        }
-        
-        const w = 80;
-        const h = 110;
-        ctx.drawImage(img, -w/2, -h/2 - 10, w, h);
-        ctx.restore();
-        return;
-    }
-
     ctx.save();
-    
-    // 레벨에 따른 키 1.0~1.2 스케일링
-    const heightScale = 1.0 + (Math.min(10, lv) - 1) * 0.02;
     ctx.translate(x, y);
-    ctx.scale(1.0, heightScale);
     
-    // 피부 안색 필터 처리 (기본 살구색 -> 레벨이 높을수록 건강한 구릿빛 태닝)
-    let skinColor = "#ffd1a9"; // Lv 1~2 기본
-    if (lv >= 3 && lv <= 4) skinColor = "#e0a97c";
-    if (lv >= 5 && lv <= 7) skinColor = "#bd885c";
-    if (lv >= 8) skinColor = "#966138"; // 챔피언 태닝 피부
+    // 키 스케일링 (Lv.1: 100% ~ Lv.10: 120%)
+    const heightScale = 1.0 + (lv - 1) * 0.022;
+    ctx.scale(heightScale, heightScale);
     
-    // 수영복 색 (성별 및 착용 아이템 연동)
-    let suitColor = (gender === 'boy') ? '#2196f3' : '#e91e63'; // 남:파 / 여:분홍
-    if (player.equippedSwimsuit === 'swimsuit_sport') suitColor = '#4caf50';
-    if (player.equippedSwimsuit === 'swimsuit_pro') suitColor = '#1e272e';
-    if (player.equippedSwimsuit === 'swimsuit_champ') suitColor = '#ffeb3b'; // 골드 수영복
+    // 안색 색조 필터 (Lv.1 창백 -> Lv.10 건강한 구릿빛)
+    let skinColor = "#fcd5b5"; // 기본 살구색
+    if (lv <= 2) skinColor = "#fef0e3"; // 창백
+    else if (lv >= 7) skinColor = "#d89667"; // 구릿빛
+    else if (lv >= 4) skinColor = "#f1b88e"; // 살짝 탄 안색
     
-    // --- 수영 역동감 애니메이션 물리 (Sway / Kicking) ---
-    const sway = Math.sin(animTime / 100) * 8;
-    const kick = Math.cos(animTime / 80) * 12;
-    
-    // 1. 다리 드로잉 (발차기)
+    // 1. 머리카락 및 얼굴
     ctx.fillStyle = skinColor;
-    ctx.fillRect(-15, 20 + kick / 3, 8, 20); // 왼 다리
-    ctx.fillRect(7, 20 - kick / 3, 8, 20);  // 오른 다리
     
-    // 2. 몸통 드로잉 (근력 레벨에 따라 상체 두께 V-Torso 변화)
-    const baseWidth = 26;
-    const muscleBonus = (lv - 1) * 2; // 레벨 1당 어깨 넓어짐
+    // 몸통 너비 (근량 수치에 따른 상체 발달)
+    const baseWidth = 24 + (lv - 1) * 1.5;
+    const muscleBonus = (lv >= 5) ? 6 : 0;
+    
+    // 2. 수영복 바디 드로잉
+    let suitColor = (gender === 'boy') ? '#2980b9' : '#8e44ad';
+    if (lv >= 8) suitColor = '#111111'; // 프로 골드 레이싱 수영복
+    else if (lv >= 4) suitColor = '#c0392b'; // 스포츠 수영복
     
     ctx.fillStyle = suitColor;
-    ctx.beginPath();
-    ctx.moveTo(-(baseWidth/2 + muscleBonus/2), -30);
-    ctx.lineTo(baseWidth/2 + muscleBonus/2, -30);
-    ctx.lineTo(baseWidth/2 - 2, 20);
-    ctx.lineTo(-(baseWidth/2 - 2), 20);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillRect(-(baseWidth/2), -30, baseWidth, 35);
     
-    // 3. 팔 드로잉 (자유형 좌우 교차 팔젓기)
+    // 복근 선 표현 (Lv.5 이상)
+    if (lv >= 5) {
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-4, -15); ctx.lineTo(4, -15);
+        ctx.moveTo(-4, -5); ctx.lineTo(4, -5);
+        ctx.stroke();
+    }
+    
+    // 3. 수영 스트로크 어깨 팔 동작 (애니메이션)
     ctx.strokeStyle = skinColor;
-    ctx.lineWidth = 8;
+    ctx.lineWidth = 6 + (lv * 0.4);
     ctx.lineCap = "round";
     
     // 왼팔
@@ -1843,6 +1993,14 @@ function drawSwimmingRace() {
         }
         ctx.setLineDash([]);
     }
+    
+    // 무지개 파티클 이펙트 드로잉
+    raceState.rainbowParticles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+    });
     
     // 2. 장애물 렌더링
     raceState.obstacles.forEach(obs => {
