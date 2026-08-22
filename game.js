@@ -1874,6 +1874,38 @@ function triggerRaceSpurt() {
 
 // 10단계 시각 외형 변화를 위한 인체 그리기 함수 (Voxel 리스킨 Fallback 대응)
 function drawHuman(ctx, x, y, gender, lv, dir, animTime) {
+    // 1. 구글 스티치 PNG 캐릭터 에셋 스프라이트 우선 렌더링
+    let spriteLv = 1;
+    if (lv >= 10) spriteLv = 10;
+    else if (lv >= 7) spriteLv = 7;
+    else if (lv >= 5) spriteLv = 5;
+    else if (lv >= 3) spriteLv = 3;
+    
+    const imgKey = "char_" + (gender === 'boy' ? 'boy' : 'girl') + "_lv" + spriteLv;
+    const img = images[imgKey];
+    
+    if (isAssetsLoaded && img && img.complete && img.naturalHeight > 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        
+        // 레벨에 따른 키 1.0~1.2 스케일링
+        const heightScale = 1.0 + (Math.min(10, lv) - 1) * 0.02;
+        ctx.scale(1.0, heightScale);
+        
+        // 수영 스트로크 흔들림 효과
+        if (animTime > 0) {
+            const sway = Math.sin(animTime / 120) * 4;
+            ctx.rotate(sway * Math.PI / 180);
+        }
+        
+        const w = 75;
+        const h = 105;
+        ctx.drawImage(img, -w/2, -h/2 - 10, w, h);
+        ctx.restore();
+        return;
+    }
+    
+    // 2. 에셋 미로드 시 캔버스 2D 도형 폴백 그리기
     ctx.save();
     ctx.translate(x, y);
     
